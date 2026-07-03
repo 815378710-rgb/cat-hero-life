@@ -1,0 +1,15 @@
+node_modules
+frontend
+.git
+wechat-hook
+*.zip
+*.exe
+WeChatSetup*
+weixin_*
+WeFlow*
+*.bat
+*.ps1
+bot_ui.py
+bot.py
+test_sse.py
+NUL
