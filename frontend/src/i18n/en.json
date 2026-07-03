@@ -5,10 +5,19 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "chat": "Cat Hero",
     "checkin": "Check-in",
     "stats": "Statistics",
     "achievements": "Achievements",
-    "profile": "Profile"
+    "profile": "Profile",
+    "character": "Character",
+    "shop": "Shop",
+    "gamefication": "Gamification",
+    "data": "Data",
+    "heatmap": "Heatmap",
+    "leaderboard": "Leaderboard",
+    "coach": "AI Coach",
+    "settings": "Settings"
   },
   "dashboard": {
     "title": "Life Hero Dashboard",
