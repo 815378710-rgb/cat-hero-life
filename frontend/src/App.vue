@@ -48,6 +48,8 @@
         <div class="nav-section">
           <div class="nav-section-title">{{ t('nav.data', '数据') }}</div>
           <NavItem page="heatmap" icon="fas fa-fire" :label="t('nav.heatmap', '热力图')" @click="navigate" />
+          <NavItem page="leaderboard" icon="fas fa-trophy" :label="t('nav.leaderboard', '排行榜')" @click="navigate" />
+          <NavItem page="coach" icon="fas fa-lightbulb" :label="t('nav.coach', 'AI教练')" @click="navigate" />
           <NavItem page="settings" icon="fas fa-cog" :label="t('nav.settings', '设置')" @click="navigate" />
         </div>
       </nav>

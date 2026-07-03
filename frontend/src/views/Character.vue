@@ -5,10 +5,21 @@
       <div class="card">
         <div class="card-header"><div class="card-title">👤 角色信息</div></div>
         <div class="text-center" style="padding:20px">
-          <div style="font-size:80px;margin-bottom:16px">🐱</div>
-          <h2>Lv.{{ level }} 猫猫侠</h2>
-          <div class="progress-bar"><div class="progress-fill" :style="{ width: expProgress + '%' }"></div></div>
-          <span class="text-dim">{{ exp }} / {{ expForNext }} EXP ({{ expProgress }}%)</span>
+          <div class="cat-avatar" :class="evolutionStage.stage">{{ evolutionStage.emoji }}</div>
+          <h2>Lv.{{ level }} {{ evolutionStage.title }}</h2>
+          <div class="evolution-stage">{{ evolutionStage.name }}</div>
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: expProgress + '%' }">
+              <span class="progress-text" v-if="expProgress > 15">{{ expProgress }}%</span>
+            </div>
+          </div>
+          <span class="text-dim">{{ exp }} / {{ expForNext }} EXP</span>
+          
+          <!-- 进化预览 -->
+          <div v-if="evolutionStage.next" class="evolution-preview">
+            <span>下一阶：{{ evolutionStage.next.emoji }} {{ evolutionStage.next.name }} (Lv.{{ evolutionStage.next.level }})</span>
+          </div>
+
           <div class="stat-row">
             <div class="stat-item"><div class="stat-val">{{ totalExp }}</div><div class="stat-lbl">总经验</div></div>
             <div class="stat-item"><div class="stat-val">{{ coins }}</div><div class="stat-lbl">金币</div></div>
@@ -76,6 +87,32 @@ const dimensions = computed(() => {
   ]
 })
 
+const evolutionStages = [
+  { level: 0, name: '猫蛋', emoji: '🥚', title: '新生小猫', stage: 'egg' },
+  { level: 5, name: '小猫崽', emoji: '🐣', title: '猫猫学徒', stage: 'baby' },
+  { level: 10, name: '小猫咪', emoji: '🐱', title: '初级猫侠', stage: 'kitten' },
+  { level: 20, name: '成长猫', emoji: '🐈', title: '高级猫侠', stage: 'junior' },
+  { level: 30, name: '精英猫', emoji: '🐆', title: '精英猫侠', stage: 'elite' },
+  { level: 40, name: '王者猫', emoji: '🦁', title: '宗师猫侠', stage: 'master' },
+  { level: 50, name: '传说猫', emoji: '🐯', title: '传奇猫侠', stage: 'legend' },
+  { level: 60, name: '神话猫', emoji: '🐉', title: '神话猫侠', stage: 'mythic' },
+  { level: 80, name: '创世猫', emoji: '🌟', title: '创世猫神', stage: 'divine' },
+]
+
+const evolutionStage = computed(() => {
+  const lv = level.value
+  let current = evolutionStages[0]
+  let next = null
+  for (let i = evolutionStages.length - 1; i >= 0; i--) {
+    if (lv >= evolutionStages[i].level) {
+      current = evolutionStages[i]
+      next = evolutionStages[i + 1] || null
+      break
+    }
+  }
+  return { ...current, next }
+})
+
 onMounted(async () => {
   await userStore.fetchUser()
   await nextTick()
@@ -118,8 +155,43 @@ onMounted(async () => {
 .stat-item { text-align: center; }
 .stat-val { font-size: 24px; font-weight: 700; }
 .stat-lbl { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
-.progress-bar { width: 100%; max-width: 300px; height: 8px; background: var(--bg-input); border-radius: 4px; margin: 8px auto; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--primary), var(--secondary)); }
+
+/* Evolution System */
+.cat-avatar {
+  font-size: 80px; margin-bottom: 12px; transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  display: inline-block; animation: catBounce 2s ease-in-out infinite;
+}
+.cat-avatar.egg { animation: eggWiggle 1.5s ease-in-out infinite; }
+.cat-avatar.baby { animation: babyHop 1.2s ease-in-out infinite; }
+.cat-avatar.kitten, .cat-avatar.junior { animation: catBounce 2s ease-in-out infinite; }
+.cat-avatar.elite, .cat-avatar.master { animation: catRoar 3s ease-in-out infinite; }
+.cat-avatar.legend, .cat-avatar.mythic { animation: catGlow 2s ease-in-out infinite; }
+.cat-avatar.divine { animation: catSpin 2s linear infinite; }
+
+.evolution-stage {
+  font-size: 14px; color: var(--primary); font-weight: 600; margin-bottom: 8px;
+}
+
+.evolution-preview {
+  margin-top: 8px; font-size: 12px; color: var(--text-dim);
+  background: rgba(255,107,157,0.1); border-radius: 12px; padding: 4px 12px; display: inline-block;
+}
+
+/* Progress Bar Enhanced */
+.progress-bar {
+  width: 100%; max-width: 300px; height: 20px; background: var(--bg-input);
+  border-radius: 10px; margin: 8px auto; overflow: hidden; position: relative;
+}
+.progress-fill {
+  height: 100%; border-radius: 10px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  position: relative; transition: width 0.5s ease;
+}
+.progress-text {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; font-weight: 700; color: white;
+}
+
 .dimension-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .dim-card { text-align: center; }
 .dim-icon { font-size: 24px; margin-bottom: 4px; }
@@ -127,5 +199,39 @@ onMounted(async () => {
 .dim-value { font-size: 18px; font-weight: 700; }
 .dim-bar { width: 100%; height: 4px; background: var(--bg-input); border-radius: 2px; margin-top: 6px; overflow: hidden; }
 .dim-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+/* Evolution Animations */
+@keyframes catBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes eggWiggle {
+  0%, 100% { transform: rotate(0deg) scale(0.9); }
+  25% { transform: rotate(5deg) scale(0.95); }
+  75% { transform: rotate(-5deg) scale(0.95); }
+}
+@keyframes babyHop {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-12px) scale(1.1); }
+  50% { transform: translateY(0) scale(0.95); }
+  70% { transform: translateY(-6px) scale(1.05); }
+}
+@keyframes catRoar {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 gold); }
+  10% { transform: scale(1.15); filter: drop-shadow(0 0 8px gold); }
+  20% { transform: scale(0.95); }
+  30% { transform: scale(1.05); }
+}
+@keyframes catGlow {
+  0%, 100% { filter: drop-shadow(0 0 4px var(--primary)); }
+  50% { filter: drop-shadow(0 0 16px var(--primary)) brightness(1.2); }
+}
+@keyframes catSpin {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(5deg) scale(1.05); }
+  75% { transform: rotate(-5deg) scale(1.05); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
 @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } .dimension-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>

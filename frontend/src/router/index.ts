@@ -18,6 +18,8 @@ const routes = [
   { path: '/narrative', name: 'narrative', component: () => import('@/views/Narrative.vue') },
   { path: '/settings', name: 'settings', component: () => import('@/views/Settings.vue') },
   { path: '/heatmap', name: 'heatmap', component: () => import('@/views/Heatmap.vue') },
+  { path: '/leaderboard', name: 'leaderboard', component: () => import('@/views/Leaderboard.vue') },
+  { path: '/coach', name: 'coach', component: () => import('@/views/AICoach.vue') },
 ]
 
 const router = createRouter({

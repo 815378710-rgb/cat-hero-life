@@ -31,6 +31,8 @@ import lifeDashboardRoutes from './routes/life-dashboard.js';
 import feishuRoutes from './routes/feishu.js';
 import gewechatRoutes from './routes/gewechat.js';
 import deepDataRoutes from './routes/deep-data.js';
+import coachRoutes from './routes/coach.js';
+import socialRoutes from './routes/social.js';
 import { startScheduler } from './services/scheduler.js';
 import { setAiConfig } from './services/ai-engine.js';
 
@@ -82,6 +84,8 @@ async function start() {
   app.use('/api/life-tools', lifeToolsRoutes);
   app.use('/api/life-dashboard', lifeDashboardRoutes);
   app.use('/api/feishu', feishuRoutes);
+  app.use('/api/coach', coachRoutes);
+  app.use('/api/social', socialRoutes);
   app.use('/api/gewechat', gewechatRoutes);
   app.use('/api/deep', deepDataRoutes);
   
