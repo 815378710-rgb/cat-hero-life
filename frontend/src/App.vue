@@ -18,6 +18,9 @@
         <button class="btn-icon" @click="toggleTheme" :title="isDark ? '切换亮色' : '切换暗色'">
           {{ isDark ? '☀️' : '🌙' }}
         </button>
+        <button class="btn-icon" @click="toggleLocale" :title="currentLocale === 'zh-CN' ? 'Switch to English' : '切换到中文'">
+          {{ currentLocale === 'zh-CN' ? '🇺🇸' : '🇨🇳' }}
+        </button>
         <span class="mood-emoji">{{ moodEmoji }}</span>
         <span class="stat-badge level">Lv.{{ userStore.level }}</span>
         <span class="stat-badge coins">🪙 {{ userStore.coins }}</span>
@@ -30,26 +33,22 @@
       <!-- Sidebar -->
       <nav class="sidebar" :class="{ open: sidebarOpen }">
         <div class="nav-section">
-          <NavItem page="dashboard" icon="fas fa-home" label="主页" @click="navigate" />
-          <NavItem page="chat" icon="fas fa-comments" label="猫猫侠" @click="navigate" />
-          <NavItem page="tasks" icon="fas fa-tasks" label="任务中心" @click="navigate" />
-          <NavItem page="checkin" icon="fas fa-check-circle" label="打卡" @click="navigate" />
-          <NavItem page="habits" icon="fas fa-repeat" label="习惯" @click="navigate" />
-          <NavItem page="goals" icon="fas fa-bullseye" label="目标" @click="navigate" />
+          <NavItem page="dashboard" icon="fas fa-home" :label="t('nav.dashboard')" @click="navigate" />
+          <NavItem page="chat" icon="fas fa-comments" :label="t('nav.chat')" @click="navigate" />
+          <NavItem page="checkin" icon="fas fa-check-circle" :label="t('nav.checkin')" @click="navigate" />
+          <NavItem page="stats" icon="fas fa-chart-bar" :label="t('nav.stats')" @click="navigate" />
+          <NavItem page="achievements" icon="fas fa-trophy" :label="t('nav.achievements')" @click="navigate" />
+          <NavItem page="profile" icon="fas fa-user" :label="t('nav.profile')" @click="navigate" />
         </div>
         <div class="nav-section">
-          <div class="nav-section-title">游戏化</div>
-          <NavItem page="character" icon="fas fa-user-shield" label="角色面板" @click="navigate" />
-          <NavItem page="achievements" icon="fas fa-trophy" label="成就" @click="navigate" />
-          <NavItem page="shop" icon="fas fa-store" label="商店" @click="navigate" />
+          <div class="nav-section-title">{{ t('nav.gamefication', '游戏化') }}</div>
+          <NavItem page="character" icon="fas fa-user-shield" :label="t('nav.character', '角色面板')" @click="navigate" />
+          <NavItem page="shop" icon="fas fa-store" :label="t('nav.shop', '商店')" @click="navigate" />
         </div>
         <div class="nav-section">
-          <div class="nav-section-title">数据</div>
-          <NavItem page="plans" icon="fas fa-map" label="人生规划" @click="navigate" />
-          <NavItem page="memory" icon="fas fa-brain" label="记忆" @click="navigate" />
-          <NavItem page="narrative" icon="fas fa-book" label="人生故事" @click="navigate" />
-          <NavItem page="heatmap" icon="fas fa-fire" label="热力图" @click="navigate" />
-          <NavItem page="settings" icon="fas fa-cog" label="设置" @click="navigate" />
+          <div class="nav-section-title">{{ t('nav.data', '数据') }}</div>
+          <NavItem page="heatmap" icon="fas fa-fire" :label="t('nav.heatmap', '热力图')" @click="navigate" />
+          <NavItem page="settings" icon="fas fa-cog" :label="t('nav.settings', '设置')" @click="navigate" />
         </div>
       </nav>
 
@@ -92,10 +91,20 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useI18n } from 'vue-i18n'
+import { setLocale } from '@/i18n'
 import NavItem from '@/components/NavItem.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const { locale, t } = useI18n()
+
+// Locale
+const currentLocale = computed(() => locale.value)
+const toggleLocale = () => {
+  const newLocale = locale.value === 'zh-CN' ? 'en' : 'zh-CN'
+  setLocale(newLocale)
+}
 
 // Sidebar
 const sidebarOpen = ref(false)

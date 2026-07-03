@@ -1,0 +1,80 @@
+{
+  "zh-CN": {
+    "app": {
+      "title": "猫猫侠 - 人生英雄之路",
+      "subtitle": "用游戏化的方式，成为人生的英雄"
+    },
+    "nav": {
+      "dashboard": "仪表盘",
+      "checkin": "打卡",
+      "stats": "统计",
+      "achievements": "成就",
+      "profile": "我的"
+    },
+    "dashboard": {
+      "title": "人生英雄仪表盘",
+      "level": "等级",
+      "xp": "经验值",
+      "coins": "金币",
+      "streak": "连续打卡",
+      "todayTasks": "今日任务",
+      "recentCheckins": "最近打卡",
+      "noTasks": "今天还没有任务，去添加一个吧！",
+      "noCheckins": "还没有打卡记录，开始你的人生英雄之路吧！"
+    },
+    "checkin": {
+      "title": "打卡",
+      "selectCategory": "选择类别",
+      "writeReflection": "写下你的感悟...",
+      "submit": "打卡",
+      "success": "打卡成功！获得 {xp} XP 和 {coins} 金币",
+      "categories": {
+        "health": "健康",
+        "finance": "财务",
+        "learning": "学习",
+        "career": "职业",
+        "social": "社交",
+        "mental": "心理",
+        "creativity": "创造",
+        "habits": "习惯"
+      }
+    },
+    "stats": {
+      "title": "数据统计",
+      "totalCheckins": "总打卡次数",
+      "currentStreak": "当前连续",
+      "maxStreak": "最长连续",
+      "categoryDistribution": "类别分布",
+      "weeklyTrend": "本周趋势",
+      "monthlyTrend": "本月趋势"
+    },
+    "achievements": {
+      "title": "成就",
+      "unlocked": "已解锁",
+      "locked": "未解锁",
+      "progress": "进度",
+      "description": "描述"
+    },
+    "profile": {
+      "title": "我的",
+      "level": "等级",
+      "xp": "经验值",
+      "coins": "金币",
+      "memberSince": "加入时间",
+      "editProfile": "编辑资料",
+      "settings": "设置",
+      "logout": "退出登录"
+    },
+    "common": {
+      "loading": "加载中...",
+      "save": "保存",
+      "cancel": "取消",
+      "delete": "删除",
+      "edit": "编辑",
+      "confirm": "确认",
+      "back": "返回",
+      "next": "下一步",
+      "previous": "上一步"
+    }
+  }
+}

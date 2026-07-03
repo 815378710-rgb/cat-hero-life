@@ -123,6 +123,119 @@ router.get('/growth', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// SSE流式输出端点
+router.post('/stream', async (req, res) => {
+  const db = req.db;
+  try {
+    const user = db.prepare('SELECT * FROM users LIMIT 1').get();
+    const profile = db.prepare('SELECT * FROM life_profile WHERE user_id = ?').get(user.id);
+    const { message } = req.body;
+    
+    // 保存用户消息
+    db.prepare("INSERT INTO chat_history (user_id, role, content) VALUES (?, 'user', ?)").run(user.id, message);
+    
+    // 设置SSE头
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    
+    // 自动提取数据
+    const extractedData = extractAndSaveData(db, user.id, message);
+    
+    const context = buildFullContext(db, user, profile);
+    const analysis = analyzeMessage(message);
+    const mood = getAiMood(db, user.id);
+    
+    // 如果不是AI模式，使用规则引擎（非流式）
+    if (!isAiEnabled()) {
+      const response = generateRuleBasedResponse(message, user, profile, context, analysis, db, mood);
+      res.write(`data: ${JSON.stringify({ type: 'message', content: response.text })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'done', metadata: response.metadata })}\n\n`);
+      return res.end();
+    }
+    
+    // AI模式：流式输出
+    const systemPrompt = buildSystemPrompt(user, profile, context, user.personality_type || 'encouraging');
+    const recentHistory = db.prepare("SELECT role, content FROM chat_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 10").all(user.id).reverse();
+    
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...recentHistory.map(m => ({ role: m.role === 'system' ? 'assistant' : m.role, content: m.content }))
+    ];
+    
+    // 调用DeepSeek API（流式）
+    const axios = (await import('axios')).default;
+    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || user.ai_api_key || '';
+    const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
+    
+    let fullResponse = '';
+    
+    try {
+      const streamResponse = await axios.post(
+        `${DEEPSEEK_BASE_URL}/chat/completions`,
+        {
+          model: 'deepseek-chat',
+          messages: messages,
+          temperature: 0.85,
+          max_tokens: 800,
+          stream: true
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          responseType: 'stream'
+        }
+      );
+      
+      // 读取流式响应
+      streamResponse.data.on('data', (chunk) => {
+        const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
+        
+        for (const line of lines) {
+          if (line.startsWith('data:')) {
+            const jsonStr = line.slice(5).trim();
+            if (jsonStr === '[DONE]') {
+              res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+              continue;
+            }
+            
+            try {
+              const json = JSON.parse(jsonStr);
+              const content = json.choices[0]?.delta?.content || '';
+              if (content) {
+                fullResponse += content;
+                res.write(`data: ${JSON.stringify({ type: 'message', content })}\n\n`);
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      });
+      
+      streamResponse.data.on('end', () => {
+        // 保存完整回复
+        db.prepare("INSERT INTO chat_history (user_id, role, content) VALUES (?, 'assistant', ?)").run(user.id, fullResponse);
+        res.write(`data: ${JSON.stringify({ type: 'done', fullResponse })}\n\n`);
+        res.end();
+      });
+      
+    } catch (error) {
+      console.error('Stream error:', error);
+      res.write(`data: ${JSON.stringify({ type: 'error', message: '流式输出失败，请重试' })}\n\n`);
+      res.end();
+    }
+    
+  } catch (e) {
+    console.error('Chat stream error:', e);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: e.message })}\n\n`);
+    res.end();
+  }
+});
+
 // ===== 辅助函数 =====
 
 function buildFullContext(db, user, profile) {

@@ -1,0 +1,78 @@
+{
+  "app": {
+    "title": "Cat Hero - Life Hero's Journey",
+    "subtitle": "Become a hero of your life through gamification"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "checkin": "Check-in",
+    "stats": "Statistics",
+    "achievements": "Achievements",
+    "profile": "Profile"
+  },
+  "dashboard": {
+    "title": "Life Hero Dashboard",
+    "level": "Level",
+    "xp": "XP",
+    "coins": "Coins",
+    "streak": "Streak",
+    "todayTasks": "Today's Tasks",
+    "recentCheckins": "Recent Check-ins",
+    "noTasks": "No tasks today, go add one!",
+    "noCheckins": "No check-ins yet, start your hero's journey!"
+  },
+  "checkin": {
+    "title": "Check-in",
+    "selectCategory": "Select Category",
+    "writeReflection": "Write your reflection...",
+    "submit": "Check-in",
+    "success": "Check-in successful! Earned {xp} XP and {coins} coins",
+    "categories": {
+      "health": "Health",
+      "finance": "Finance",
+      "learning": "Learning",
+      "career": "Career",
+      "social": "Social",
+      "mental": "Mental",
+      "creativity": "Creativity",
+      "habits": "Habits"
+    }
+  },
+  "stats": {
+    "title": "Statistics",
+    "totalCheckins": "Total Check-ins",
+    "currentStreak": "Current Streak",
+    "maxStreak": "Max Streak",
+    "categoryDistribution": "Category Distribution",
+    "weeklyTrend": "Weekly Trend",
+    "monthlyTrend": "Monthly Trend"
+  },
+  "achievements": {
+    "title": "Achievements",
+    "unlocked": "Unlocked",
+    "locked": "Locked",
+    "progress": "Progress",
+    "description": "Description"
+  },
+  "profile": {
+    "title": "Profile",
+    "level": "Level",
+    "xp": "XP",
+    "coins": "Coins",
+    "memberSince": "Member Since",
+    "editProfile": "Edit Profile",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous"
+  }
+}

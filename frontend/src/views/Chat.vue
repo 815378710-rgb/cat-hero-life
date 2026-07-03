@@ -67,7 +67,7 @@ const sendMessage = async () => {
   messages.value.push({
     id: Date.now(),
     user_id: '',
-    role: 'user',
+    role: 'user' as const,
     content: text,
     metadata: null,
     created_at: new Date().toISOString()
@@ -75,25 +75,65 @@ const sendMessage = async () => {
   scrollToBottom()
   
   typing.value = true
+  
+  // 创建AI回复消息（流式更新）
+  const aiMsg: ChatMessage = {
+    id: Date.now() + 1,
+    user_id: '',
+    role: 'assistant',
+    content: '',
+    metadata: null,
+    created_at: new Date().toISOString()
+  }
+  messages.value.push(aiMsg)
+  
   try {
-    const res = await chatApi.send(text)
-    messages.value.push({
-      id: Date.now() + 1,
-      user_id: '',
-      role: 'assistant',
-      content: res.response,
-      metadata: JSON.stringify(res.metadata),
-      created_at: new Date().toISOString()
+    // 使用SSE流式输出
+    const response = await fetch('/api/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
     })
+    
+    if (!response.ok) throw new Error('Stream request failed')
+    
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    
+    if (!reader) throw new Error('No reader available')
+    
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      
+      for (const line of lines) {
+        if (line.startsWith('data:')) {
+          try {
+            const data = JSON.parse(line.slice(5).trim())
+            
+            if (data.type === 'message') {
+              // 追加内容（流式更新）
+              aiMsg.content += data.content
+              scrollToBottom()
+            } else if (data.type === 'done') {
+              typing.value = false
+            } else if (data.type === 'error') {
+              aiMsg.content = data.message || '抱歉，出了点问题~'
+              typing.value = false
+            }
+          } catch (e) {
+            // 忽略解析错误
+          }
+        }
+      }
+    }
   } catch (e) {
-    messages.value.push({
-      id: Date.now() + 1,
-      user_id: '',
-      role: 'assistant',
-      content: '抱歉，出了点问题~ 请稍后再试。',
-      metadata: null,
-      created_at: new Date().toISOString()
-    })
+    aiMsg.content = '抱歉，出了点问题~ 请稍后再试。'
   } finally {
     typing.value = false
     scrollToBottom()
