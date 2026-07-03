@@ -11,6 +11,95 @@ function validateNumber(value, min, max, fieldName) {
 
 const router = Router();
 
+router.get('/heatmap', (req, res) => {
+  const db = req.db;
+  try {
+    const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+    const { days } = req.query;
+    const daysNum = parseInt(days) || 365;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysNum);
+    const startDateStr = startDate.toISOString().split('T')[0];
+    
+    // 获取打卡数据
+    const checkins = db.prepare(`
+      SELECT date(checked_at) as date, COUNT(*) as count 
+      FROM check_ins 
+      WHERE user_id = ? AND date(checked_at) >= ?
+      GROUP BY date(checked_at)
+    `).all(user.id, startDateStr);
+    
+    // 构建日期映射
+    const dateMap = {};
+    checkins.forEach(c => {
+      dateMap[c.date] = c.count;
+    });
+    
+    // 计算连续天数
+    let currentStreak = 0;
+    const today = new Date().toISOString().split('T')[0];
+    for (let i = 0; i < 365; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      if (dateMap[dateStr] && dateMap[dateStr] > 0) {
+        currentStreak++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    
+    // 计算最长连续
+    let maxStreak = 0;
+    let tempStreak = 0;
+    const allDates = Object.keys(dateMap).sort();
+    for (let i = 0; i < allDates.length; i++) {
+      if (i === 0 || (new Date(allDates[i]).getTime() - new Date(allDates[i-1]).getTime()) / 86400000 === 1) {
+        tempStreak++;
+        maxStreak = Math.max(maxStreak, tempStreak);
+      } else {
+        tempStreak = 1;
+      }
+    }
+    
+    // 构建weeks数组（简化版）
+    const weeks = [];
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    
+    for (let w = 0; w < Math.ceil(daysNum / 7); w++) {
+      const week = [];
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + w * 7 + d);
+        date.setHours(0, 0, 0, 0);
+        
+        if (date > todayDate) break;
+        
+        const dateStr = date.toISOString().split('T')[0];
+        week.push({
+          date: dateStr,
+          count: dateMap[dateStr] || 0,
+          isToday: dateStr === today
+        });
+      }
+      if (week.length > 0) {
+        weeks.push(week);
+      }
+    }
+    
+    res.json({
+      weeks,
+      total: checkins.reduce((sum, c) => sum + c.count, 0),
+      currentStreak,
+      maxStreak
+    });
+  } catch (e) { 
+    console.error('Heatmap error:', e);
+    res.status(500).json({ error: e.message }); 
+  }
+});
+
 router.post('/', (req, res) => {
   const db = req.db;
   try {
