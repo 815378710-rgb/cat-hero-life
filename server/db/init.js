@@ -86,7 +86,7 @@ export async function initDb() {
   const db = createDbWrapper(rawDb);
   
   // Execute schemas
-  for (const sqlFile of ['schema.sql', 'schema-ext.sql', 'schema-final.sql', 'schema-deep.sql', 'schema-index.sql']) {
+  for (const sqlFile of ['schema.sql', 'schema-ext.sql', 'schema-final.sql', 'schema-deep.sql', 'schema-index.sql', 'schema-wechat.sql']) {
     const schemaPath = join(__dirname, sqlFile);
     if (existsSync(schemaPath)) {
       const schema = readFileSync(schemaPath, 'utf-8');

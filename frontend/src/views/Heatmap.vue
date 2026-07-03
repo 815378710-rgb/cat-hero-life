@@ -11,29 +11,33 @@
     </div>
     
     <div class="heatmap-grid">
-      <div class="month-labels">
-        <span v-for="month in monthLabels" :key="month">{{ month }}</span>
-      </div>
       <div class="days-labels">
+        <span></span>
         <span>一</span>
+        <span></span>
         <span>三</span>
+        <span></span>
         <span>五</span>
-        <span>日</span>
+        <span></span>
       </div>
-      <div class="heatmap-cells">
-        <div 
-          v-for="(week, wi) in weeks" 
-          :key="wi" 
-          class="week"
-        >
+      <div class="grid-body">
+        <div class="month-labels">
+          <span v-for="(month, i) in monthLabels" :key="i" :style="getMonthStyle(i)">{{ month }}</span>
+        </div>
+        <div class="heatmap-cells">
           <div 
-            v-for="(day, di) in week" 
-            :key="`${wi}-${di}`"
-            class="day-cell"
-            :class="{ 'has-data': day.count > 0, 'today': day.isToday }"
-            :style="{ backgroundColor: getColor(day.count) }"
-            :title="day.date ? `${day.date}: ${day.count}次打卡` : ''"
-          ></div>
+            v-for="(week, wi) in weeks" 
+            :key="wi" 
+            class="week"
+          >
+            <div 
+              v-for="(day, di) in week" 
+              :key="`${wi}-${di}`"
+              class="day-cell"
+              :style="{ backgroundColor: getColor(day.count) }"
+              :title="day.date ? `${day.date}: ${day.count}次打卡` : ''"
+            ></div>
+          </div>
         </div>
       </div>
     </div>
@@ -57,7 +61,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import api from '@/api';
 
 interface DayData {
   date: string;
@@ -65,11 +68,7 @@ interface DayData {
   isToday: boolean;
 }
 
-const props = defineProps<{
-  days?: number;
-}>();
-
-const days = props.days || 365;
+const days = 365;
 const weeks = ref<DayData[][]>([]);
 const totalCheckins = ref(0);
 const currentStreak = ref(0);
@@ -85,6 +84,13 @@ const monthLabels = computed(() => {
   return labels;
 });
 
+function getMonthStyle(index: number) {
+  // Approximate column position for month labels
+  const weeksPerMonth = 4.3;
+  const leftPercent = index * (100 / 12);
+  return { left: `${leftPercent}%` };
+}
+
 function getColor(count: number): string {
   if (count === 0) return '#ebedf0';
   if (count <= 2) return '#9be9a8';
@@ -94,11 +100,9 @@ function getColor(count: number): string {
 
 async function loadData() {
   try {
-    const response = await api.get('/api/checkins/heatmap', {
-      params: { days }
-    });
+    const res = await fetch(`/api/checkins/heatmap?days=${days}`);
+    const data = await res.json();
     
-    const data = response.data || response;
     weeks.value = data.weeks || generateMockWeeks();
     totalCheckins.value = data.total || 0;
     currentStreak.value = data.currentStreak || 0;
@@ -144,10 +148,11 @@ onMounted(() => {
 
 <style scoped>
 .heatmap-container {
-  background: white;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow-x: auto;
 }
 
 .heatmap-header {
@@ -155,18 +160,20 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  flex-wrap: wrap; gap: 8px;
 }
 
 .heatmap-header h3 {
   margin: 0;
   font-size: 16px;
+  color: var(--text);
 }
 
 .legend {
   display: flex;
   gap: 8px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-dim);
 }
 
 .legend-item {
@@ -184,30 +191,45 @@ onMounted(() => {
 
 .heatmap-grid {
   display: flex;
-  gap: 8px;
-}
-
-.month-labels {
-  display: flex;
-  justify-content: space-around;
-  font-size: 11px;
-  color: #666;
-  margin-bottom: 4px;
+  gap: 4px;
 }
 
 .days-labels {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  font-size: 11px;
-  color: #666;
-  width: 20px;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-dim);
+  padding-top: 16px;
+  height: 100%;
+}
+
+.days-labels span {
+  height: 12px;
+  line-height: 12px;
+}
+
+.grid-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.month-labels {
+  position: relative;
+  height: 16px;
+  margin-bottom: 4px;
+}
+
+.month-labels span {
+  position: absolute;
+  font-size: 10px;
+  color: var(--text-dim);
 }
 
 .heatmap-cells {
   display: flex;
   gap: 3px;
-  flex: 1;
 }
 
 .week {
@@ -220,22 +242,14 @@ onMounted(() => {
   width: 12px;
   height: 12px;
   border-radius: 2px;
-  background: #ebedf0;
-  cursor: pointer;
-  transition: all 0.2s;
+  background: var(--bg-input);
+  transition: transform 0.15s;
 }
 
 .day-cell:hover {
-  transform: scale(1.5);
+  transform: scale(1.6);
   z-index: 10;
-}
-
-.day-cell.has-data {
-  background: #40c463;
-}
-
-.day-cell.today {
-  border: 2px solid #6366f1;
+  outline: 1px solid var(--primary);
 }
 
 .heatmap-stats {
@@ -243,7 +257,7 @@ onMounted(() => {
   justify-content: space-around;
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
 }
 
 .stat {
@@ -255,12 +269,12 @@ onMounted(() => {
 .stat-value {
   font-size: 24px;
   font-weight: bold;
-  color: #6366f1;
+  color: var(--primary);
 }
 
 .stat-label {
   font-size: 12px;
-  color: #666;
+  color: var(--text-dim);
   margin-top: 4px;
 }
 </style>

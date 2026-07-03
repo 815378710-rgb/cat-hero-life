@@ -33,6 +33,8 @@ import gewechatRoutes from './routes/gewechat.js';
 import deepDataRoutes from './routes/deep-data.js';
 import coachRoutes from './routes/coach.js';
 import socialRoutes from './routes/social.js';
+import wechatBotRoutes from './routes/wechat-bot.js';
+import wechatService from './services/wechat.js';
 import { startScheduler } from './services/scheduler.js';
 import { setAiConfig } from './services/ai-engine.js';
 
@@ -86,6 +88,7 @@ async function start() {
   app.use('/api/feishu', feishuRoutes);
   app.use('/api/coach', coachRoutes);
   app.use('/api/social', socialRoutes);
+  app.use('/api/wechat-bot', wechatBotRoutes);
   app.use('/api/gewechat', gewechatRoutes);
   app.use('/api/deep', deepDataRoutes);
   
@@ -190,6 +193,16 @@ async function start() {
   app.listen(PORT, () => {
     console.log(`🐱 猫猫侠人生管理系统启动成功! http://localhost:${PORT}`);
     startScheduler();
+    
+    // 初始化微信服务
+    wechatService.setDb(createDbWrapper(getDb()));
+    
+    // 每分钟检查是否需要发送微信提醒
+    setInterval(async () => {
+      try {
+        await wechatService.dailyReminderCheck(createDbWrapper(getDb()));
+      } catch (e) {}
+    }, 60000);
   });
 }
 
