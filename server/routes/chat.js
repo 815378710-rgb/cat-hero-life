@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import { chatWithLLM, buildSystemPrompt, analyzeMessage, isAiEnabled, getAiConfig } from '../services/ai-engine.js';
+import { chatWithLLM, buildSystemPrompt, analyzeMessage, isAiEnabled, getAiConfig, llmAnalyzeIntent, llmAnalyzeEmotion } from '../services/ai-engine.js';
 import { getUnlockedFeatures, isFeatureUnlocked, getNextUnlock } from '../services/growth.js';
 import { getAiMood, getMoodPrefix } from '../services/life-engine.js';
 import { extractAndSaveData } from '../services/data-extractor.js';
@@ -69,7 +69,25 @@ router.post('/send', async (req, res) => {
     const resolvedMessage = await resolveReferences(db, user.id, message);
     
     const context = buildFullContext(db, user, profile);
-    const analysis = analyzeMessage(message);
+    
+    // LLM优先的意图理解（DeepSeek/GPT/Claude）
+    let analysis = null;
+    if (isAiEnabled()) {
+      // 先用LLM做深度意图+情绪分析
+      const [llmIntent, llmEmotion] = await Promise.all([
+        llmAnalyzeIntent(message, profile).catch(() => null),
+        llmAnalyzeEmotion(message, []).catch(() => null)
+      ]);
+      if (llmIntent) {
+        analysis = {
+          intent: llmIntent.intent,
+          emotion: llmIntent.emotion || llmEmotion?.emotion,
+          emotionIntensity: llmIntent.emotionIntensity || llmEmotion?.intensity || 3
+        };
+      }
+    }
+    // LLM不可用时回退到关键词匹配
+    if (!analysis) analysis = analyzeMessage(message);
     
     // 获取记忆上下文
     const memories = getContextMemories(db, user.id);

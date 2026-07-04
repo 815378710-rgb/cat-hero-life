@@ -237,6 +237,184 @@ function safeJoin(jsonStr) {
   } catch { return String(jsonStr || '未填写'); }
 }
 
+// ===== LLM增强功能 =====
+
+// 1. LLM意图理解（替代关键词匹配）
+export async function llmAnalyzeIntent(message, userProfile) {
+  if (!isAiEnabled()) return null;
+  
+  const prompt = `分析以下用户消息，返回JSON格式：
+{"intent": "意图类型", "emotion": "情绪", "emotionIntensity": 1-5, "topics": ["话题"], "urgency": "low/medium/high"}
+
+意图类型: greeting/task/signin/stats/achievements/shop/report/plan/profile/help/memory/narrative/life_advice/onboarding/general
+情绪: happy/sad/anxious/tired/angry/lonely/confused/motivated/neutral
+
+用户消息: "${message}"
+
+只返回JSON，不要其他文字。`;
+
+  try {
+    const result = await chatWithLLM([{ role: 'user', content: prompt }], { temperature: 0.1, maxTokens: 200 });
+    if (result) {
+      const parsed = JSON.parse(result.match(/\{[\s\S]*\}/)?.[0] || '{}');
+      if (parsed.intent && parsed.emotion) return parsed;
+    }
+  } catch {}
+  return null;
+}
+
+// 2. LLM因果分析（反馈到神经权重）
+export async function llmCausalAnalysis(recentEvents, currentStats) {
+  if (!isAiEnabled()) return null;
+  
+  const prompt = `你是一个行为分析AI。根据用户最近的事件和当前状态，分析因果关系。
+
+最近事件:
+${recentEvents.map(e => `- ${e.date}: ${e.description} (情绪:${e.emotion || '?'})`).join('\n')}
+
+当前属性:
+${Object.entries(currentStats).map(([k,v]) => `- ${k}: ${v}`).join('\n')}
+
+请分析：
+1. 哪些行为导致了哪些属性变化？
+2. 哪些是正向因果，哪些是负向？
+3. 给出具体的维度间影响建议（权重0-1）
+
+返回JSON格式：
+{"causes": [{"from": "维度", "to": "维度", "weight": 0.5, "reason": "原因"}], "insights": ["洞察"]}
+
+只返回JSON。`;
+
+  try {
+    const result = await chatWithLLM([{ role: 'user', content: prompt }], { temperature: 0.2, maxTokens: 500 });
+    if (result) return JSON.parse(result.match(/\{[\s\S]*\}/)?.[0] || '{}');
+  } catch {}
+  return null;
+}
+
+// 3. LLM任务规划（替代随机模板）
+export async function llmPlanTasks(userProfile, currentStats, energy, habits, recentTasks, goals) {
+  if (!isAiEnabled()) return null;
+  
+  const prompt = `你是猫猫侠AI，一个智能人生管理助手。根据用户情况生成今日任务。
+
+用户档案:
+${userProfile ? `- 职业: ${userProfile.current_job || '未知'}\n- 城市: ${userProfile.city || '未知'}\n- 兴趣: ${safeJoin(userProfile.hobbies)}\n- 当前挑战: ${safeJoin(userProfile.current_challenges)}\n- 想学: ${safeJoin(userProfile.want_to_learn)}` : '未建档'}
+
+当前属性(0-100):
+${Object.entries(currentStats).map(([k,v]) => `- ${k}: ${v}`).join('\n')}
+
+能量等级: ${energy}/100
+活跃习惯: ${habits.map(h => h.name + (h.done ? '✅' : '❌')).join(', ') || '无'}
+目标: ${goals.map(g => g.title + '(' + g.current_value + '/' + g.target_value + ')').join(', ') || '无'}
+
+请生成4-6个今日任务，要求：
+1. 优先提升最弱的2个维度
+2. 结合用户的职业和兴趣
+3. 能量低时任务要简单
+4. 任务要具体可执行
+
+返回JSON数组：
+[{"title": "任务标题", "dimension": "维度", "difficulty": "easy/medium/hard", "reason": "为什么安排这个任务", "exp": 10, "coins": 5}]
+
+只返回JSON数组。`;
+
+  try {
+    const result = await chatWithLLM([{ role: 'user', content: prompt }], { temperature: 0.5, maxTokens: 800 });
+    if (result) return JSON.parse(result.match(/\[[\s\S]*\]/)?.[0] || '[]');
+  } catch {}
+  return null;
+}
+
+// 4. LLM主动对话判断（替代纯cron）
+export async function llmShouldReachOut(context) {
+  if (!isAiEnabled()) return null;
+  
+  const prompt = `你是猫猫侠AI，判断现在是否应该主动找用户聊天。
+
+当前状态:
+- 时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}
+- 用户最后活跃: ${context.lastActive || '未知'}
+- 连续签到: ${context.streak}天
+- 今日完成任务: ${context.completedToday}个
+- 最近情绪趋势: ${context.recentEmotions?.join(', ') || '未知'}
+- 最弱维度: ${context.weakestDim}(${context.weakestVal}分)
+- 能量: ${context.energy}/100
+- 距上次对话: ${context.hoursSinceLastChat}小时
+
+判断标准：
+1. 用户超过6小时没活跃，且是白天 → 可以问候
+2. 用户情绪持续低落 → 需要关怀
+3. 用户连续完成任务 → 应该鼓励
+4. 用户有未完成的重要目标 → 提醒
+5. 深夜(23-7点) → 除非紧急否则不打扰
+
+返回JSON：
+{"shouldReachOut": true/false, "reason": "原因", "message": "要说的话", "tone": "encouraging/strict/funny/caring"}
+
+只返回JSON。`;
+
+  try {
+    const result = await chatWithLLM([{ role: 'user', content: prompt }], { temperature: 0.3, maxTokens: 300 });
+    if (result) return JSON.parse(result.match(/\{[\s\S]*\}/)?.[0] || '{}');
+  } catch {}
+  return null;
+}
+
+// 5. LLM情绪深度分析（替代关键词匹配）
+export async function llmAnalyzeEmotion(message, recentMessages) {
+  if (!isAiEnabled()) return null;
+  
+  const prompt = `分析用户的情绪状态。不要只看关键词，要理解语境和潜台词。
+
+最近对话:
+${recentMessages.slice(-5).map(m => `${m.role}: ${m.content}`).join('\n')}
+
+当前消息: "${message}"
+
+返回JSON：
+{"emotion": "happy/sad/anxious/tired/angry/lonely/confused/motivated/neutral", "intensity": 1-5, "trigger": "触发原因", "suggestion": "建议回应方式"}
+
+只返回JSON。`;
+
+  try {
+    const result = await chatWithLLM([{ role: 'user', content: prompt }], { temperature: 0.2, maxTokens: 200 });
+    if (result) return JSON.parse(result.match(/\{[\s\S]*\}/)?.[0] || '{}');
+  } catch {}
+  return null;
+}
+
+// 6. LLM智能复盘（替代模板报告）
+export async function llmGenerateReview(todayData, weekData, userProfile) {
+  if (!isAiEnabled()) return null;
+  
+  const prompt = `生成今日复盘，要有温度、有洞察、有建议。
+
+今日数据:
+- 完成任务: ${todayData.completed}/${todayData.total}
+- 打卡: ${todayData.checkins}次
+- 情绪: ${todayData.mood}/5
+- 能量: ${todayData.energy}/100
+
+本周趋势:
+- 任务完成率: ${weekData.completionRate}%
+- 最活跃维度: ${weekData.topDimension}
+- 最弱维度: ${weekData.weakDimension}
+- 情绪趋势: ${weekData.moodTrend}
+
+用猫猫侠的口吻写，简短有温度(3-5句话)，包含：
+1. 今天做得好的地方
+2. 需要改进的地方
+3. 明天的建议
+
+直接返回文字，不要JSON。`;
+
+  try {
+    return await chatWithLLM([{ role: 'user', content: prompt }], { temperature: 0.7, maxTokens: 300 });
+  } catch {}
+  return null;
+}
+
 // 意图识别 + 情绪分析（用于路由决策，不调用LLM）
 export function analyzeMessage(message) {
   const msg = message.toLowerCase();

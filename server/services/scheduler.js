@@ -8,11 +8,12 @@ import { sendToSelf } from './wechat-service.js';
 import { pushToFeishu } from './feishu-service.js';
 import { takeBalanceSnapshot } from './balance-radar.js';
 import { consolidateMemories, decayMemories } from './memory-system.js';
-import { learnEnergyBaseline } from './energy-model.js';
+import { learnEnergyBaseline, calculateCurrentEnergy, getEnergyLevel } from './energy-model.js';
 import { learnWeightsFromData, detectFeedbackCycles } from './neural-engine.js';
 import { getPendingChecks, checkDecisionOutcome } from './decision-tracker.js';
 import { checkTitleUnlocks } from './gamification-deep.js';
 import { shouldNotify, logNotification, learnActivityPattern } from './smart-notifications.js';
+import { chatWithLLM, isAiEnabled, llmPlanTasks, llmShouldReachOut, llmGenerateReview } from './ai-engine.js';
 
 function getWrappedDb() { return createDbWrapper(getDb()); }
 
@@ -171,16 +172,71 @@ export function startScheduler() {
   cron.schedule('0 4 * * *', () => {
     try { saveDb(); console.log('📦 数据库自动备份完成'); } catch (e) { console.error('备份失败:', e.message); }
   }, { timezone: 'Asia/Shanghai' });
+
+  // 每周日 5:00 LLM因果分析（反馈到神经权重）
+  cron.schedule('0 5 * * 0', async () => {
+    try {
+      const db = getWrappedDb();
+      const user = db.prepare('SELECT * FROM users LIMIT 1').get();
+      if (!user || !isAiEnabled()) return;
+      const { llmCausalAnalysis } = await import('./ai-engine.js');
+      const recentEvents = db.prepare("SELECT created_at as date, content as description FROM chat_history WHERE user_id = ? AND role = 'user' ORDER BY created_at DESC LIMIT 20").all(user.id);
+      const stats = { health: user.stat_health, finance: user.stat_finance, learning: user.stat_learning, career: user.stat_career, social: user.stat_social, mental: user.stat_mental, habits: user.stat_habits, creativity: user.stat_creativity };
+      const causal = await llmCausalAnalysis(recentEvents, stats);
+      if (causal?.causes) {
+        const { updateWeight } = await import('./neural-engine.js');
+        for (const cause of causal.causes) {
+          if (cause.from && cause.to && cause.weight >= 0 && cause.weight <= 1) {
+            updateWeight(db, cause.from, cause.to, cause.weight, 'llm');
+          }
+        }
+        console.log('🧠 LLM因果分析完成，更新了', causal.causes.length, '个权重');
+      }
+    } catch (e) { console.error('LLM因果分析失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
 }
 
-function triggerDialogue(type, reason) {
+async function triggerDialogue(type, reason) {
   const db = getWrappedDb();
   const user = db.prepare('SELECT id FROM users LIMIT 1').get();
   if (!user) return;
   const profile = db.prepare('SELECT * FROM life_profile WHERE user_id = ?').get(user.id);
   const userData = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
-  const message = generateProactiveMessage(db, userData, profile, type, reason);
+  
+  let message = null;
+  
+  // 尝试用LLM生成智能主动消息
+  if (isAiEnabled()) {
+    try {
+      const today = getToday();
+      const lastChat = db.prepare("SELECT created_at FROM chat_history WHERE user_id = ? AND role = 'user' ORDER BY created_at DESC LIMIT 1").get(user.id);
+      const hoursSince = lastChat ? (Date.now() - new Date(lastChat.created_at)) / 3600000 : 999;
+      const completed = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE user_id = ? AND scheduled_date = ? AND status = 'completed'").get(user.id, today);
+      const weakest = ['health','finance','learning','career','social','mental','habits','creativity'].map(d => ({ dim: d, val: userData['stat_'+d] })).sort((a, b) => a.val - b.val)[0];
+      const energy = calculateCurrentEnergy(db, user.id);
+      const recentEmotions = db.prepare('SELECT emotion_tag FROM ai_memory WHERE user_id = ? AND emotion_tag IS NOT NULL ORDER BY created_at DESC LIMIT 5').all(user.id).map(m => m.emotion_tag);
+      
+      const llmDecision = await llmShouldReachOut({
+        lastActive: lastChat?.created_at,
+        streak: userData.consecutive_sign_days,
+        completedToday: completed.c,
+        recentEmotions,
+        weakestDim: weakest.dim,
+        weakestVal: weakest.val,
+        energy,
+        hoursSinceLastChat: hoursSince
+      });
+      
+      if (llmDecision?.shouldReachOut && llmDecision.message) {
+        message = llmDecision.message;
+      }
+    } catch {}
+  }
+  
+  // LLM不可用时回退到模板
+  if (!message) message = generateProactiveMessage(db, userData, profile, type, reason);
   if (!message) return;
+  
   const id = uuid();
   db.prepare("INSERT INTO system_dialogues (id, user_id, dialogue_type, trigger_reason, ai_message, status) VALUES (?, ?, ?, ?, ?, 'pending')").run(id, user.id, type, reason, message);
   db.prepare("INSERT INTO chat_history (user_id, role, content) VALUES (?, 'assistant', ?)").run(user.id, message);
@@ -227,25 +283,47 @@ function generateProactiveMessage(db, user, profile, type, reason) {
   }
 }
 
-function generateDailyTasks() {
+async function generateDailyTasks() {
   const db = getWrappedDb();
   const user = db.prepare('SELECT * FROM users LIMIT 1').get();
   if (!user) return;
   const today = getToday();
   const existing = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE user_id = ? AND scheduled_date = ?").get(user.id, today);
   if (existing.c > 0) return;
-  const allTasks = [
-    { dimension: 'health', title: '喝8杯水', desc: '保持身体水分充足', diff: 'easy', exp: 10, coins: 5 },
-    { dimension: 'health', title: '运动30分钟', desc: '跑步/健身/散步', diff: 'medium', exp: 20, coins: 10 },
-    { dimension: 'learning', title: '学习1小时', desc: '专注学习新知识', diff: 'medium', exp: 20, coins: 10 },
-    { dimension: 'habits', title: '今日复盘', desc: '回顾今天的收获', diff: 'easy', exp: 15, coins: 8 },
-    { dimension: 'mental', title: '冥想10分钟', desc: '放空大脑，深呼吸', diff: 'easy', exp: 10, coins: 5 },
-    { dimension: 'finance', title: '记录今日支出', desc: '记账是理财第一步', diff: 'easy', exp: 10, coins: 5 },
-  ];
-  const count = 4 + Math.floor(Math.random() * 3);
-  const selected = allTasks.sort(() => Math.random() - 0.5).slice(0, count);
-  for (const t of selected) {
-    db.prepare("INSERT INTO tasks (id, user_id, dimension_id, title, description, task_type, difficulty, exp_reward, coin_reward, scheduled_date) VALUES (?, ?, ?, ?, ?, 'daily', ?, ?, ?, ?)").run(uuid(), user.id, t.dimension, t.title, t.desc, t.diff, t.exp, t.coins, today);
+
+  // 尝试用LLM生成个性化任务
+  const profile = db.prepare('SELECT * FROM life_profile WHERE user_id = ?').get(user.id);
+  const stats = { health: user.stat_health, finance: user.stat_finance, learning: user.stat_learning, career: user.stat_career, social: user.stat_social, mental: user.stat_mental, habits: user.stat_habits, creativity: user.stat_creativity };
+  const energy = calculateCurrentEnergy(db, user.id);
+  const habits = db.prepare('SELECT h.*, (SELECT COUNT(*) FROM habit_logs hl WHERE hl.habit_id = h.id AND date(hl.logged_at) = date("now")) as today_count FROM habits h WHERE h.user_id = ? AND h.is_active = 1').all(user.id).map(h => ({ name: h.name, done: h.today_count > 0 }));
+  const goals = db.prepare("SELECT * FROM goals WHERE user_id = ? AND status = 'active' LIMIT 3").all(user.id);
+  const recentTasks = db.prepare("SELECT title, status FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT 10").all(user.id);
+
+  const llmTasks = await llmPlanTasks(profile, stats, energy, habits, recentTasks, goals);
+
+  if (llmTasks && llmTasks.length > 0) {
+    for (const t of llmTasks) {
+      const diffMap = { easy: { exp: 10, coins: 5 }, medium: { exp: 20, coins: 10 }, hard: { exp: 40, coins: 20 } };
+      const rewards = diffMap[t.difficulty] || diffMap.medium;
+      db.prepare("INSERT INTO tasks (id, user_id, dimension_id, title, description, task_type, difficulty, exp_reward, coin_reward, scheduled_date) VALUES (?, ?, ?, ?, ?, 'daily', ?, ?, ?, ?)")
+        .run(uuid(), user.id, t.dimension || 'habits', t.title, t.reason || '', t.difficulty || 'medium', rewards.exp, rewards.coins, today);
+    }
+    addSystemMessage(`🧠 AI已根据你的情况生成了${llmTasks.length}个个性化任务！`);
+  } else {
+    // LLM不可用时回退到模板
+    const allTasks = [
+      { dimension: 'health', title: '喝8杯水', desc: '保持身体水分充足', diff: 'easy', exp: 10, coins: 5 },
+      { dimension: 'health', title: '运动30分钟', desc: '跑步/健身/散步', diff: 'medium', exp: 20, coins: 10 },
+      { dimension: 'learning', title: '学习1小时', desc: '专注学习新知识', diff: 'medium', exp: 20, coins: 10 },
+      { dimension: 'habits', title: '今日复盘', desc: '回顾今天的收获', diff: 'easy', exp: 15, coins: 8 },
+      { dimension: 'mental', title: '冥想10分钟', desc: '放空大脑，深呼吸', diff: 'easy', exp: 10, coins: 5 },
+      { dimension: 'finance', title: '记录今日支出', desc: '记账是理财第一步', diff: 'easy', exp: 10, coins: 5 },
+    ];
+    const count = 4 + Math.floor(Math.random() * 3);
+    const selected = allTasks.sort(() => Math.random() - 0.5).slice(0, count);
+    for (const t of selected) {
+      db.prepare("INSERT INTO tasks (id, user_id, dimension_id, title, description, task_type, difficulty, exp_reward, coin_reward, scheduled_date) VALUES (?, ?, ?, ?, ?, 'daily', ?, ?, ?, ?)").run(uuid(), user.id, t.dimension, t.title, t.desc, t.diff, t.exp, t.coins, today);
+    }
   }
   saveDb();
 }
@@ -282,14 +360,32 @@ function triggerDynamicEvent() {
   saveDb();
 }
 
-function generateDailyReport() {
+async function generateDailyReport() {
   const db = getWrappedDb();
-  const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+  const user = db.prepare('SELECT * FROM users LIMIT 1').get();
   if (!user) return;
   const today = getToday();
   const tasks = db.prepare("SELECT * FROM tasks WHERE user_id = ? AND scheduled_date = ?").all(user.id, today);
   const completed = tasks.filter(t => t.status === 'completed').length;
-  db.prepare("INSERT OR REPLACE INTO daily_reports (id, user_id, report_date, summary, tasks_completed, tasks_total, exp_gained, coins_gained, highlights, suggestions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(uuid(), user.id, today, `今天完成了${completed}/${tasks.length}个任务。`, completed, tasks.length, completed * 20, completed * 10, '[]', '[]');
+  const checkins = db.prepare("SELECT COUNT(*) as c FROM check_ins WHERE user_id = ? AND date(checked_at) = ?").get(user.id, today);
+  const mood = db.prepare('SELECT AVG(mood_score) as avg FROM mental_mood_diary WHERE user_id = ? AND diary_date = ?').get(user.id, today);
+  const energy = calculateCurrentEnergy(db, user.id);
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+  const weekCompletion = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as done FROM tasks WHERE user_id = ? AND scheduled_date >= ?").get(user.id, weekAgo);
+  const weakest = ['health','finance','learning','career','social','mental','habits','creativity'].map(d => ({ dim: d, val: user['stat_'+d] })).sort((a, b) => a.val - b.val);
+
+  // 尝试用LLM生成智能复盘
+  let summary = `今天完成了${completed}/${tasks.length}个任务。`;
+  if (isAiEnabled()) {
+    const llmSummary = await llmGenerateReview(
+      { completed, total: tasks.length, checkins: checkins.c, mood: mood?.avg || 3, energy },
+      { completionRate: weekCompletion.total > 0 ? Math.round(weekCompletion.done / weekCompletion.total * 100) : 0, topDimension: weakest[weakest.length-1]?.dim, weakDimension: weakest[0]?.dim, moodTrend: 'stable' },
+      null
+    );
+    if (llmSummary) summary = llmSummary;
+  }
+
+  db.prepare("INSERT OR REPLACE INTO daily_reports (id, user_id, report_date, summary, tasks_completed, tasks_total, exp_gained, coins_gained, highlights, suggestions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(uuid(), user.id, today, summary, completed, tasks.length, completed * 20, completed * 10, '[]', '[]');
   saveDb();
 }
 
