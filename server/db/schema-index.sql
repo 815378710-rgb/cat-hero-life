@@ -118,9 +118,9 @@ CREATE INDEX IF NOT EXISTS idx_mood_date ON mental_mood_diary(diary_date);
 -- 成就系统索引
 -- ==========================================
 
--- achievements表
-CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id);
-CREATE INDEX IF NOT EXISTS idx_achievements_unlocked ON achievements(user_id, is_unlocked);
+-- user_achievements表
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_achievements_unlocked ON user_achievements(user_id, achievement_id);
 
 -- ==========================================
 -- 优化完成

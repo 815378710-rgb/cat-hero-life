@@ -18,6 +18,7 @@ const routes = [
   { path: '/narrative', name: 'narrative', component: () => import('@/views/Narrative.vue') },
   { path: '/settings', name: 'settings', component: () => import('@/views/Settings.vue') },
   { path: '/heatmap', name: 'heatmap', component: () => import('@/views/Heatmap.vue') },
+  { path: '/neural', name: 'neural', component: () => import('@/views/Neural.vue') },
   { path: '/leaderboard', name: 'leaderboard', component: () => import('@/views/Leaderboard.vue') },
   { path: '/coach', name: 'coach', component: () => import('@/views/AICoach.vue') },
   { path: '/stats', name: 'stats', component: () => import('@/views/Stats.vue') },

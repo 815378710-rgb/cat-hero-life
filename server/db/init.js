@@ -28,8 +28,27 @@ export function getDb() {
   return db;
 }
 
+let saveTimer = null;
+let dirty = false;
+
 export function saveDb() {
+  dirty = true;
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (!dirty || !db) return;
+    dirty = false;
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+    writeFileSync(DB_PATH, buffer);
+  }, 1000);
+}
+
+export function saveDbImmediate() {
   if (!db) return;
+  dirty = false;
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   const data = db.export();
   const buffer = Buffer.from(data);
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
@@ -86,7 +105,7 @@ export async function initDb() {
   const db = createDbWrapper(rawDb);
   
   // Execute schemas
-  for (const sqlFile of ['schema.sql', 'schema-ext.sql', 'schema-final.sql', 'schema-deep.sql', 'schema-index.sql', 'schema-wechat.sql']) {
+  for (const sqlFile of ['schema.sql', 'schema-ext.sql', 'schema-final.sql', 'schema-deep.sql', 'schema-index.sql', 'schema-wechat.sql', 'schema-neural.sql']) {
     const schemaPath = join(__dirname, sqlFile);
     if (existsSync(schemaPath)) {
       const schema = readFileSync(schemaPath, 'utf-8');
@@ -125,4 +144,27 @@ export async function initDb() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await initDb();
   process.exit(0);
+}
+
+// 数据库版本管理
+const DB_VERSION = 2;
+export function checkDbVersion(db) {
+  try {
+    db.prepare('CREATE TABLE IF NOT EXISTS db_version (version INTEGER)').run();
+    const row = db.prepare('SELECT version FROM db_version LIMIT 1').get();
+    if (!row) {
+      db.prepare('INSERT INTO db_version VALUES (?)').run(DB_VERSION);
+    } else if (row.version < DB_VERSION) {
+      migrateDb(db, row.version, DB_VERSION);
+      db.prepare('UPDATE db_version SET version = ?').run(DB_VERSION);
+    }
+  } catch (e) { console.error('版本检查失败:', e.message); }
+}
+
+function migrateDb(db, from, to) {
+  console.log(`📦 数据库迁移: v${from} → v${to}`);
+  // v1 → v2: 添加神经系统表
+  if (from < 2) {
+    // schema-neural.sql会在initDb中自动执行
+  }
 }

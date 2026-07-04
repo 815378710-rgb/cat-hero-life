@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
+import { propagate } from '../services/neural-engine.js';
 
 function validateNumber(value, min, max, fieldName) {
   const num = parseFloat(value);
@@ -37,7 +38,7 @@ router.get('/heatmap', (req, res) => {
     
     // 计算连续天数
     let currentStreak = 0;
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
     for (let i = 0; i < 365; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
@@ -103,7 +104,8 @@ router.get('/heatmap', (req, res) => {
 router.post('/', (req, res) => {
   const db = req.db;
   try {
-    const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+    const user = db.prepare('SELECT * FROM users LIMIT 1').get();
+    if (!user) return res.status(400).json({ error: '用户不存在' });
     const { task_id, dimension_id, check_type, title, value, note, mood, energy } = req.body;
     
     // 验证
@@ -119,7 +121,7 @@ router.post('/', (req, res) => {
     }
     
     // 去重（同维度同标题同天）
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
     const existing = db.prepare("SELECT id FROM check_ins WHERE user_id = ? AND dimension_id = ? AND title = ? AND date(checked_at) = ?").get(user.id, dimension_id, title.trim(), today);
     if (existing && check_type !== 'manual') {
       return res.json({ success: false, message: '今天已经打过卡了~' });
@@ -129,11 +131,14 @@ router.post('/', (req, res) => {
     const safeVal = (v) => v === undefined ? null : v;
     
     db.prepare(`INSERT INTO check_ins (id, user_id, task_id, dimension_id, check_type, title, value, note, mood, energy)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, user.id, task_id || null, dimension_id, check_type || 'manual', title.trim(), value !== undefined && value !== null ? value : null, note || null, mood || null, energy || null);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, user.id, task_id || null, dimension_id, check_type || 'manual', title.trim(), value != null ? value : null, note || null, mood != null ? mood : null, energy != null ? energy : null);
     
     const colMap = { health: 'stat_health', finance: 'stat_finance', learning: 'stat_learning', career: 'stat_career', social: 'stat_social', mental: 'stat_mental', habits: 'stat_habits', creativity: 'stat_creativity' };
     const col = colMap[dimension_id];
     if (col) db.prepare(`UPDATE users SET ${col} = MIN(100, ${col} + 1), updated_at = datetime('now') WHERE id = ?`).run(user.id);
+    
+    // 神经传播：打卡触发维度间影响
+    try { propagate(db, user.id, dimension_id, 2); } catch (e) { console.error('传播失败:', e.message); }
     
     const expReward = 5, coinReward = 2;
     const getExpForLevel = (l) => Math.floor(100 * Math.pow(1.15, l - 1));
@@ -164,7 +169,7 @@ router.get('/today', (req, res) => {
   const db = req.db;
   try {
     const user = db.prepare('SELECT id FROM users LIMIT 1').get();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
     const summary = db.prepare(`SELECT dimension_id, COUNT(*) as count, SUM(value) as total_value FROM check_ins WHERE user_id = ? AND date(checked_at) = ? GROUP BY dimension_id`).all(user.id, today);
     const totalToday = db.prepare(`SELECT COUNT(*) as count FROM check_ins WHERE user_id = ? AND date(checked_at) = ?`).get(user.id, today);
     res.json({ summary, total: totalToday.count, date: today });

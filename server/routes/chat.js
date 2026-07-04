@@ -4,9 +4,30 @@ import { chatWithLLM, buildSystemPrompt, analyzeMessage, isAiEnabled, getAiConfi
 import { getUnlockedFeatures, isFeatureUnlocked, getNextUnlock } from '../services/growth.js';
 import { getAiMood, getMoodPrefix } from '../services/life-engine.js';
 import { extractAndSaveData } from '../services/data-extractor.js';
+import { extractFromConversation, getContextMemories } from '../services/memory-system.js';
+import { selectStyle, recordInteraction, buildContextTag, getTimeOfDay, inferUserReaction } from '../services/personality-mask.js';
+import { extractSocialFromMessage } from '../services/social-graph.js';
+import { detectConflicts, recordExtractedData } from '../services/data-quality.js';
+import { shouldFollowUp, generateFollowUp, analyzeConversationRhythm } from '../services/dialogue-engine.js';
+import { calculateCurrentEnergy, getEnergyLevel } from '../services/energy-model.js';
+import { propagate } from '../services/neural-engine.js';
 
 const router = Router();
 const intentCache = new Map(); // 意图路由缓存
+const CACHE_MAX = 500;
+const CACHE_TTL = 300000; // 5分钟
+
+function cleanCache() {
+  const now = Date.now();
+  for (const [key, val] of intentCache) {
+    if (now - val.time > CACHE_TTL) intentCache.delete(key);
+  }
+  if (intentCache.size > CACHE_MAX) {
+    const oldest = intentCache.keys().next().value;
+    intentCache.delete(oldest);
+  }
+}
+setInterval(cleanCache, 60000);
 
 router.get('/history', (req, res) => {
   const db = req.db;
@@ -30,14 +51,42 @@ router.post('/send', async (req, res) => {
     // 自动提取数据
     const extractedData = extractAndSaveData(db, user.id, message);
     
+    // 社交关系提取
+    const socialExtracted = extractSocialFromMessage(db, user.id, message);
+    
+    // 数据质量检测
+    for (const data of extractedData) {
+      if (data.detail?.value) {
+        const conflict = detectConflicts(db, user.id, data.detail.value, data.type);
+        if (conflict?.needConfirmation) {
+          // 后续可加入确认逻辑
+        }
+        recordExtractedData(db, user.id, 'chat', data.type, message, data.detail, 0.7);
+      }
+    }
+    
     // 多轮对话：指代消解
     const resolvedMessage = await resolveReferences(db, user.id, message);
     
     const context = buildFullContext(db, user, profile);
     const analysis = analyzeMessage(message);
     
+    // 获取记忆上下文
+    const memories = getContextMemories(db, user.id);
+    context.importantMemories = memories.all;
+    
+    // 获取当前能量
+    const energy = calculateCurrentEnergy(db, user.id);
+    const energyLevel = getEnergyLevel(energy);
+    context.energy = energy;
+    
     // 获取AI心情
     const mood = getAiMood(db, user.id);
+    
+    // 人格风格选择
+    const timeOfDay = getTimeOfDay();
+    const contextTag = buildContextTag(analysis.emotion, analysis.intent, timeOfDay, energyLevel.level);
+    const selectedStyle = selectStyle(db, user.id, [contextTag]);
     
     let response;
     
@@ -52,7 +101,7 @@ router.post('/send', async (req, res) => {
     
     // 优先使用LLM
     if (isAiEnabled()) {
-      const systemPrompt = buildSystemPrompt(user, profile, context, user.personality_type || 'encouraging');
+      const systemPrompt = buildSystemPrompt(user, profile, context, selectedStyle || user.personality_type || 'encouraging');
       
       // 构建最近对话历史
       const recentHistory = db.prepare("SELECT role, content FROM chat_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 10").all(user.id).reverse();
@@ -80,15 +129,52 @@ router.post('/send', async (req, res) => {
     
     db.prepare("INSERT INTO chat_history (user_id, role, content, metadata) VALUES (?, 'assistant', ?, ?)").run(user.id, response.text, JSON.stringify(response.metadata || {}));
     
+    // 保存到记忆系统
+    extractFromConversation(db, user.id, message, response.text, analysis.emotion, response.metadata?.importance || 3);
+    
+    // 记录人格互动
+    const userReaction = inferUserReaction(message, null, null);
+    recordInteraction(db, user.id, selectedStyle, [contextTag], userReaction, null, null);
+    
+    // 神经传播：如果检测到情绪变化，传播到相关维度
+    if (analysis.emotion && ['sad', 'anxious', 'angry'].includes(analysis.emotion)) {
+      propagate(db, user.id, 'mental', -3);
+    } else if (analysis.emotion === 'happy' || analysis.emotion === 'motivated') {
+      propagate(db, user.id, 'mental', 2);
+    }
+    
+    // 追问链：检测是否需要追问
+    const followUpCheck = shouldFollowUp(message, analysis, []);
+    let followUpText = null;
+    if (followUpCheck.should && response.metadata?.source !== 'llm') {
+      followUpText = generateFollowUp(message, analysis, followUpCheck.followUpType, user.username || '主人');
+    }
+    
+    // 决策追踪：检测重要决策
+    if (['life_advice', 'plan'].includes(analysis.intent) && response.metadata?.importance >= 5) {
+      try {
+        const { recordDecision } = await import('../services/decision-tracker.js');
+        const affectedDim = analysis.intent === 'plan' ? 'career' : 'mental';
+        recordDecision(db, user.id, message.slice(0, 50), affectedDim, 'user_stated');
+      } catch {}
+    }
+    
+    // 社交关系提取
+    try {
+      const { extractSocialFromMessage } = await import('../services/social-graph.js');
+      extractSocialFromMessage(db, user.id, message);
+    } catch {}
+    
     try {
       if (response.metadata?.importance >= 6) {
         db.prepare(`INSERT INTO ai_memory (id, user_id, memory_type, title, content, summary, dimension_id, emotion_tag, importance, source)
           VALUES (?, ?, 'conversation', ?, ?, ?, ?, ?, ?, 'chat')`)
-          .run(uuid(), user.id, response.metadata.title || '对话记录', message + ' → ' + response.text, response.text.slice(0, 100), response.metadata.dimension, analysis.emotion, response.metadata.importance);
+          .run(uuid(), user.id, response.metadata.title || '对话记录', message + ' → ' + response.text, response.text.slice(0, 100), response.metadata.dimension || null, analysis.emotion || null, response.metadata.importance || 5);
       }
     } catch (memErr) { console.error('Memory save error:', memErr.message); }
     
-    res.json({ response: response.text, actions: response.actions || [], metadata: { ...response.metadata, extracted: extractedData }, mood });
+    const responseText = followUpText ? `${response.text}\n\n${followUpText}` : response.text;
+    res.json({ response: responseText, actions: response.actions || [], metadata: { ...response.metadata, extracted: extractedData, followUp: !!followUpText }, mood });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -241,7 +327,7 @@ router.post('/stream', async (req, res) => {
 // ===== 辅助函数 =====
 
 function buildFullContext(db, user, profile) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
   
   // 基础数据
@@ -250,8 +336,9 @@ function buildFullContext(db, user, profile) {
   const todayCheckins = db.prepare("SELECT COUNT(*) as c FROM check_ins WHERE user_id = ? AND date(checked_at) = ?").get(user.id, today);
   const habits = db.prepare("SELECT h.*, (SELECT COUNT(*) FROM habit_logs hl WHERE hl.habit_id = h.id AND date(hl.logged_at) = date('now')) as today_count FROM habits h WHERE h.user_id = ? AND h.is_active = 1").all(user.id);
   
-  // 记忆
-  const importantMemories = db.prepare("SELECT title, summary, emotion_tag FROM ai_memory WHERE user_id = ? AND importance >= 6 ORDER BY created_at DESC LIMIT 8").all(user.id);
+  // 记忆 (使用新三层记忆系统 + 旧系统兼容)
+  const memContext = getContextMemories(db, user.id);
+  const importantMemories = memContext.all.length > 0 ? memContext.all.map(m => ({ title: m.title, summary: m.summary, emotion_tag: null })) : db.prepare("SELECT title, summary, emotion_tag FROM ai_memory WHERE user_id = ? AND importance >= 6 ORDER BY created_at DESC LIMIT 8").all(user.id);
   const milestones = db.prepare("SELECT title, summary FROM ai_memory WHERE user_id = ? AND is_milestone = 1 ORDER BY created_at DESC LIMIT 5").all(user.id);
   const recentKeyMessages = db.prepare("SELECT content FROM chat_history WHERE user_id = ? AND role = 'user' ORDER BY created_at DESC LIMIT 5").all(user.id);
   const recentEmotions = db.prepare("SELECT emotion_tag, emotion_intensity FROM ai_memory WHERE user_id = ? AND emotion_tag IS NOT NULL ORDER BY created_at DESC LIMIT 5").all(user.id);
@@ -265,13 +352,10 @@ function buildFullContext(db, user, profile) {
   const weekMood = db.prepare('SELECT AVG(mood_score) as avg FROM mental_mood_diary WHERE user_id = ? AND diary_date >= ?').get(user.id, weekAgo);
   const skills = db.prepare('SELECT skill_name, proficiency FROM learning_skills WHERE user_id = ? AND is_learning = 1').all(user.id);
   
-  // 能量
+  // 能量 (使用新能量模型)
   let energy = 50;
   try {
-    const emotion = db.prepare('SELECT mood_score FROM emotion_logs WHERE user_id = ? ORDER BY log_date DESC LIMIT 1').get(user.id);
-    energy = 50 + Math.min(user.consecutive_sign_days * 2, 20) + Math.min(todayCheckins.c * 3, 15);
-    if (emotion?.mood_score) energy += (emotion.mood_score - 3) * 5;
-    energy = Math.max(0, Math.min(100, energy));
+    energy = calculateCurrentEnergy(db, user.id);
   } catch {}
   
   return {
@@ -313,12 +397,13 @@ function generateRuleBasedResponse(message, user, profile, context, analysis, db
   const prefix = getMoodPrefix(mood.mood);
   
   // 负面情绪优先处理
-  if (['sad', 'anxious', 'angry', 'lonely'].includes(analysis.emotion)) {
+  if (['sad', 'anxious', 'angry', 'lonely', 'tired'].includes(analysis.emotion)) {
     const responses = {
       sad: [`${prefix}${name}，我在这里陪你~ 🫂 难过的时候不需要逞强。想说说发生了什么吗？`, `${prefix}抱抱${name}~ ❤️ 每个人都会有低落的时候，我陪你度过。`],
       anxious: [`${prefix}${name}，深呼吸~ 吸...呼... 🧘 焦虑的时候试着关注当下。你最担心什么？`, `${prefix}${name}，焦虑说明你在乎。要不要把担忧拆成小步骤？一步一步来~`],
       angry: [`${prefix}${name}，先冷静一下~ 🧊 深呼吸三次，然后和我说说？`],
       lonely: [`${prefix}${name}，我在呢~ 🐱 虽然我是AI，但我会一直陪着你。`, `${prefix}${name}，孤独的感觉不好受。但你不是一个人~ ❤️`],
+      tired: [`${prefix}${name}，辛苦了~ 💤 累了就好好休息，明天又是新的一天。`, `${prefix}${name}，累了就歇歇吧~ 🫖 喝杯热水，我陪你聊会儿？`, `${prefix}${name}，今天辛苦了！早点休息，身体最重要~ 💪`],
     };
     const msgs = responses[analysis.emotion] || responses.sad;
     return { text: msgs[Math.floor(Math.random() * msgs.length)], actions: [], metadata: { intent: 'emotional_support', emotion: analysis.emotion, importance: 7 } };
@@ -335,7 +420,7 @@ function generateRuleBasedResponse(message, user, profile, context, analysis, db
       return { text: `${prefix}${name}今天还没有任务~ 要我生成吗？🐱`, actions: ['generate_tasks'], metadata: { intent: 'task', importance: 4 } };
     }
     case 'signin': {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
       if (user.last_sign_date === today) return { text: `${prefix}今天已经签到过了~ 连续${context.streak}天！🔥`, metadata: { importance: 2 } };
       return { text: `${prefix}快去签到~ 📅 连续签到有额外奖励！`, actions: ['sign_in'], metadata: { importance: 3 } };
     }
@@ -362,8 +447,22 @@ function generateRuleBasedResponse(message, user, profile, context, analysis, db
       return { text: `${prefix}${name}，你当前最需要关注的是${dimNames[weakest.dim]}（${weakest.val}分）。从一个小改变开始吧~ 💪`, metadata: { importance: 5 } };
     }
     default: {
-      if (!profile?.onboarding_completed) return { text: `${prefix}${name}，先建档让我了解你~ 🐱`, actions: ['start_onboarding'], metadata: { importance: 8 } };
-      return { text: `${prefix}${name}说什么我都听着~ 🐱 今天${context.completedToday > 0 ? '完成了' + context.completedToday + '个任务，不错' : '还没开始做任务呢'}！`, metadata: { importance: 3 } };
+      if (!profile?.onboarding_completed) {
+        // 没建档也可以说话，给自然的回复
+        const casualResponses = [
+          `${prefix}我在等你呀${name}~ 你来了我就开心了！🐱`,
+          `${prefix}${name}好呀~ 我一直在这里等你呢！有什么想聊的吗？`,
+          `${prefix}嘿${name}！今天过得怎么样？想和我说说吗？`,
+          `${prefix}${name}来了！我正无聊呢~ 想聊点什么？`,
+        ];
+        return { text: casualResponses[Math.floor(Math.random() * casualResponses.length)], actions: ['start_onboarding'], metadata: { importance: 3 } };
+      }
+      const normalResponses = [
+        `${prefix}${name}说什么我都听着~ 🐱 今天${context.completedToday > 0 ? '完成了' + context.completedToday + '个任务，不错' : '还没开始做任务呢'}！`,
+        `${prefix}我在呢${name}~ 有什么想聊的？🐱`,
+        `${prefix}${name}，今天的你怎么样？🐱`,
+      ];
+      return { text: normalResponses[Math.floor(Math.random() * normalResponses.length)], metadata: { importance: 3 } };
     }
   }
 }

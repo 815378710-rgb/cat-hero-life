@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { initDb, getDb, createDbWrapper, getDbAsync } from './db/init.js';
+import { initDb, getDb, createDbWrapper, getDbAsync, saveDbImmediate } from './db/init.js';
 import userRoutes from './routes/user.js';
 import taskRoutes from './routes/tasks.js';
 import checkinRoutes from './routes/checkins.js';
@@ -34,7 +34,17 @@ import deepDataRoutes from './routes/deep-data.js';
 import coachRoutes from './routes/coach.js';
 import socialRoutes from './routes/social.js';
 import wechatBotRoutes from './routes/wechat-bot.js';
+import neuralRoutes from './routes/neural.js';
+import systemRoutes from './routes/system.js';
 import wechatService from './services/wechat.js';
+import { logger } from './utils/logger.js';
+import { propagate } from './services/neural-engine.js';
+import { calculateCurrentEnergy, learnEnergyBaseline } from './services/energy-model.js';
+import { takeBalanceSnapshot } from './services/balance-radar.js';
+import { checkDecisionOutcome, getPendingChecks } from './services/decision-tracker.js';
+import { consolidateMemories, decayMemories } from './services/memory-system.js';
+import { initStoryArcs, initQuestChains, initCatEvolutions, initTitles, checkTitleUnlocks } from './services/gamification-deep.js';
+import { initInfluenceMatrix } from './services/neural-engine.js';
 import { startScheduler } from './services/scheduler.js';
 import { setAiConfig } from './services/ai-engine.js';
 
@@ -50,6 +60,7 @@ async function start() {
   
   app.use(cors());
   app.use(express.json());
+  app.use(logger.middleware());
   app.use(express.static(join(__dirname, '..', 'dist')));
   
   // Make db wrapper available
@@ -78,7 +89,7 @@ async function start() {
   app.use('/api/ai', aiConfigRoutes);
   app.use('/api/wechat', wechatRoutes);
   app.use('/api/onboarding', onboardingRoutes);
-  app.use('/api/tasks', smartTaskRoutes);
+  app.use('/api/smart-tasks', smartTaskRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/goal-planner', goalPlannerRoutes);
   app.use('/api/daily-review', dailyReviewRoutes);
@@ -91,6 +102,8 @@ async function start() {
   app.use('/api/wechat-bot', wechatBotRoutes);
   app.use('/api/gewechat', gewechatRoutes);
   app.use('/api/deep', deepDataRoutes);
+  app.use('/api/neural', neuralRoutes);
+  app.use('/api/system', systemRoutes);
   
   // 数据备份下载
   app.get('/api/backup', (req, res) => {
@@ -190,8 +203,24 @@ async function start() {
     } catch {}
   } catch {}
 
+  process.on('SIGINT', () => { saveDbImmediate(); process.exit(0); });
+  process.on('SIGTERM', () => { saveDbImmediate(); process.exit(0); });
+
   app.listen(PORT, () => {
     console.log(`🐱 猫猫侠人生管理系统启动成功! http://localhost:${PORT}`);
+    
+    // 初始化神经智能系统
+    try {
+      const rawDb = getDb();
+      const w = createDbWrapper(rawDb);
+      initInfluenceMatrix(w);
+      initStoryArcs(w);
+      initQuestChains(w);
+      initCatEvolutions(w);
+      initTitles(w);
+      console.log('🧠 神经智能系统初始化完成');
+    } catch (e) { console.error('神经系统初始化失败:', e.message); }
+    
     startScheduler();
     
     // 初始化微信服务

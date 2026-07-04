@@ -445,10 +445,13 @@ export function getAiMood(db, userId) {
   if (user.consecutive_sign_days >= 7) score += 15;
   if (user.level >= 10) score += 10;
   
-  // 负面因素
-  if (daysSinceSign >= 3) score -= 30;
-  else if (daysSinceSign >= 1) score -= 15;
-  if (completedTasks.c === 0 && checkins.c === 0) score -= 10;
+  // 负面因素 (新用户不扣分)
+  const isNewUser = !user.last_sign_date && user.level <= 1;
+  if (!isNewUser) {
+    if (daysSinceSign >= 3) score -= 30;
+    else if (daysSinceSign >= 1) score -= 15;
+  }
+  if (completedTasks.c === 0 && checkins.c === 0 && !isNewUser) score -= 10;
   
   score = Math.max(0, Math.min(100, score));
   

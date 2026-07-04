@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
+import { propagate } from '../services/neural-engine.js';
+import { calculateCurrentEnergy, getEnergyLevel } from '../services/energy-model.js';
+import { detectLifeStage, getStageTaskTemplates } from '../services/lifecycle.js';
 
 const router = Router();
 
@@ -8,7 +11,7 @@ router.get('/', (req, res) => {
   try {
     const user = db.prepare('SELECT id FROM users LIMIT 1').get();
     const { status, date, dimension_id } = req.query;
-    const today = date || new Date().toISOString().split('T')[0];
+    const today = date || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
     
     let sql = `SELECT t.*, ld.name as dimension_name, ld.icon as dimension_icon, ld.color as dimension_color, g.title as goal_title
       FROM tasks t LEFT JOIN life_dimensions ld ON t.dimension_id = ld.id LEFT JOIN goals g ON t.goal_id = g.id WHERE t.user_id = ?`;
@@ -63,6 +66,9 @@ router.post('/:id/complete', (req, res) => {
     if (task.goal_id) db.prepare('UPDATE goals SET current_value = current_value + 1 WHERE id = ?').run(task.goal_id);
     updateDimensionStat(db, user.id, task.dimension_id, 2);
     
+    // 神经传播：任务完成触发维度间影响
+    try { propagate(db, user.id, task.dimension_id, 3); } catch (e) { console.error('传播失败:', e.message); }
+    
     res.json({ success: true, message: `完成任务喵！+${task.exp_reward}经验 +${task.coin_reward}金币 🎉`, exp: task.exp_reward, coins: task.coin_reward, level_up: newLevel > user.level, new_level: newLevel });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -83,9 +89,19 @@ router.post('/generate-daily', (req, res) => {
   const db = req.db;
   try {
     const user = db.prepare('SELECT * FROM users LIMIT 1').get();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
     const existing = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE user_id = ? AND scheduled_date = ?").get(user.id, today);
     if (existing.c > 0) return res.json({ success: false, message: '今天的任务已经生成了喵~' });
+    
+    // 能量适配：根据能量等级限制任务难度
+    const energy = calculateCurrentEnergy(db, user.id);
+    const energyLevel = getEnergyLevel(energy);
+    const difficultyOrder = ['easy', 'medium', 'hard', 'epic'];
+    const maxDifficultyIndex = difficultyOrder.indexOf(energyLevel.maxDifficulty === 'none' ? 'easy' : energyLevel.maxDifficulty);
+    
+    // 生命周期适配：根据人生阶段调整任务侧重
+    const profile = db.prepare('SELECT * FROM life_profile WHERE user_id = ?').get(user.id);
+    const stageTemplates = getStageTaskTemplates(profile);
     
     const allTasks = [
       { dimension: 'health', title: '喝8杯水', desc: '保持身体水分充足', difficulty: 'easy', exp: 10, coins: 5 },
@@ -98,8 +114,21 @@ router.post('/generate-daily', (req, res) => {
       { dimension: 'social', title: '联系一个朋友', desc: '发个消息问候一下', difficulty: 'easy', exp: 10, coins: 5 },
     ];
     
+    // 加入生命周期适配任务
+    for (const [dim, templates] of Object.entries(stageTemplates)) {
+      if (templates && templates.length > 0 && !allTasks.find(t => t.dimension === dim)) {
+        allTasks.push({ dimension: dim, title: templates[0], desc: `基于你的人生阶段`, difficulty: 'easy', exp: 10, coins: 5 });
+      }
+    }
+    
+    // 根据能量等级过滤任务难度
+    const filteredTasks = allTasks.filter(t => {
+      const taskDiffIndex = difficultyOrder.indexOf(t.difficulty);
+      return taskDiffIndex <= maxDifficultyIndex;
+    });
+    
     const count = 4 + Math.floor(Math.random() * 3);
-    const selected = allTasks.sort(() => Math.random() - 0.5).slice(0, count);
+    const selected = (filteredTasks.length >= count ? filteredTasks : allTasks).sort(() => Math.random() - 0.5).slice(0, count);
     
     for (const t of selected) {
       db.prepare(`INSERT INTO tasks (id, user_id, dimension_id, title, description, task_type, difficulty, exp_reward, coin_reward, scheduled_date)

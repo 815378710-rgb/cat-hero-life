@@ -37,8 +37,19 @@
       </div>
     </div>
 
+    <!-- Loading -->
+    <template v-if="loading">
+      <div class="stat-cards">
+        <Skeleton v-for="i in 4" :key="i" type="card" height="100px" />
+      </div>
+      <div class="grid-2">
+        <Skeleton type="chart" height="300px" />
+        <Skeleton type="list" :count="5" />
+      </div>
+    </template>
+
     <!-- Stats Grid -->
-    <div class="stat-cards">
+    <div v-else class="stat-cards">
       <div class="stat-card" @click="$router.push('/tasks')">
         <div class="stat-icon">📋</div>
         <div class="stat-value">{{ pendingTasks }}</div>
@@ -123,10 +134,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { dashboardApi, taskApi, gamificationApi } from '@/api'
+import { dashboardApi, taskApi, gamificationApi, neuralApi } from '@/api'
+import { useToast } from '@/composables/useToast'
 import type { Task, Achievement } from '@/types'
+import Skeleton from '@/components/Skeleton.vue'
 
 const userStore = useUserStore()
+const toast = useToast()
+const loading = ref(true)
 
 const todayTasks = ref<Task[]>([])
 const todayCheckins = ref(0)
@@ -170,29 +185,46 @@ const dimensions = computed(() => {
 })
 
 const loadDashboard = async () => {
+  loading.value = true
   try {
-    const data = await dashboardApi.getDashboard()
+    const [data, energyRes] = await Promise.all([
+      dashboardApi.getDashboard(),
+      neuralApi.getEnergy().catch(() => null)
+    ])
     todayTasks.value = data.todayTasks || []
     todayCheckins.value = data.todayCheckins || 0
     recentAchievements.value = data.recentAchievements || []
     pendingTasks.value = todayTasks.value.filter(t => t.status === 'pending').length
+    if (energyRes) {
+      energyValue.value = energyRes.energy
+      energyLabel.value = energyRes.level?.label || '一般'
+      energyColor.value = energyRes.level?.color || '#FF9800'
+    }
   } catch (e) {
     console.error('Failed to load dashboard:', e)
+  } finally {
+    loading.value = false
   }
 }
 
 const generateTasks = async () => {
-  const res = await taskApi.generateSmart()
+  const res = await taskApi.generateDaily()
   if (res.success) {
+    toast.success('任务已生成！')
     await loadDashboard()
+  } else {
+    toast.warning(res.message || '任务已存在')
   }
 }
 
 const completeTask = async (id: string) => {
   const res = await taskApi.completeTask(id)
   if (res.success) {
+    toast.success(res.message || '完成！')
     await loadDashboard()
     await userStore.fetchUser()
+  } else {
+    toast.error(res.message || '完成失败')
   }
 }
 

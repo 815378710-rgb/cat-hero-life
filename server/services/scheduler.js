@@ -1,10 +1,18 @@
 import cron from 'node-cron';
 import { getDb, createDbWrapper, saveDb } from '../db/init.js';
 import { v4 as uuid } from 'uuid';
+import { getToday } from '../utils/timezone.js';
 import { applyPunishment } from './life-engine.js';
 import { generateDynamicEvent, generateNarrative } from './life-engine.js';
 import { sendToSelf } from './wechat-service.js';
 import { pushToFeishu } from './feishu-service.js';
+import { takeBalanceSnapshot } from './balance-radar.js';
+import { consolidateMemories, decayMemories } from './memory-system.js';
+import { learnEnergyBaseline } from './energy-model.js';
+import { learnWeightsFromData, detectFeedbackCycles } from './neural-engine.js';
+import { getPendingChecks, checkDecisionOutcome } from './decision-tracker.js';
+import { checkTitleUnlocks } from './gamification-deep.js';
+import { shouldNotify, logNotification, learnActivityPattern } from './smart-notifications.js';
 
 function getWrappedDb() { return createDbWrapper(getDb()); }
 
@@ -68,6 +76,101 @@ export function startScheduler() {
 
   // 11:00 叙事生成（每周一、四）
   cron.schedule('0 11 * * 1,4', () => { autoGenerateNarrative(); }, { timezone: 'Asia/Shanghai' });
+
+  // ===== 神经智能系统定时任务 =====
+  
+  // 每天 23:30 人生平衡快照
+  cron.schedule('30 23 * * *', () => {
+    try {
+      const db = getWrappedDb();
+      const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+      if (user) takeBalanceSnapshot(db, user.id);
+    } catch (e) { console.error('平衡快照失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
+
+  // 每天 2:00 记忆整理 (固化 + 衰减)
+  cron.schedule('0 2 * * *', () => {
+    try {
+      const db = getWrappedDb();
+      const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+      if (user) { consolidateMemories(db, user.id); decayMemories(db, user.id); }
+    } catch (e) { console.error('记忆整理失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
+
+  // 每天 2:00 能量基线学习
+  cron.schedule('0 2 * * *', () => {
+    try {
+      const db = getWrappedDb();
+      const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+      if (user) learnEnergyBaseline(db, user.id);
+    } catch (e) { console.error('能量学习失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
+
+  // 每天 3:00 权重学习
+  cron.schedule('0 3 * * 0', () => {
+    try {
+      const db = getWrappedDb();
+      const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+      if (user) learnWeightsFromData(db, user.id);
+    } catch (e) { console.error('权重学习失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
+
+  // 每天 14:00 决策检查
+  cron.schedule('0 14 * * *', () => {
+    try {
+      const db = getWrappedDb();
+      const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+      if (user) {
+        const pending = getPendingChecks(db, user.id);
+        for (const d of pending) {
+          const outcome = checkDecisionOutcome(db, d.id, d.checkType);
+          if (outcome) addSystemMessage(`📋 决策回顾：${outcome.narrative}`);
+        }
+      }
+    } catch (e) { console.error('决策检查失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
+
+  // 每天 10:00 称号检查
+  cron.schedule('0 10 * * *', () => {
+    try {
+      const db = getWrappedDb();
+      const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+      if (user) {
+        const newTitles = checkTitleUnlocks(db, user.id);
+        for (const t of newTitles) {
+          addSystemMessage(`🏆 新称号解锁！${t.icon}「${t.name}」—— ${t.description}`);
+        }
+      }
+    } catch (e) { console.error('称号检查失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
+
+  // 每天 20:00 反馈循环检测
+  cron.schedule('0 20 * * *', () => {
+    try {
+      const db = getWrappedDb();
+      const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+      if (user) {
+        const cycles = detectFeedbackCycles(db, user.id);
+        for (const c of cycles) {
+          if (c.type === 'negative') addSystemMessage(`⚠️ ${c.description}`);
+        }
+      }
+    } catch (e) { console.error('循环检测失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
+
+  // 每天 1:00 学习通知活跃模式
+  cron.schedule('0 1 * * *', () => {
+    try {
+      const db = getWrappedDb();
+      const user = db.prepare('SELECT id FROM users LIMIT 1').get();
+      if (user) learnActivityPattern(db, user.id);
+    } catch (e) { console.error('通知学习失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
+
+  // 每天 4:00 自动备份数据库
+  cron.schedule('0 4 * * *', () => {
+    try { saveDb(); console.log('📦 数据库自动备份完成'); } catch (e) { console.error('备份失败:', e.message); }
+  }, { timezone: 'Asia/Shanghai' });
 }
 
 function triggerDialogue(type, reason) {
@@ -87,7 +190,7 @@ function triggerDialogue(type, reason) {
 
 function generateProactiveMessage(db, user, profile, type, reason) {
   const name = user.username || '主人';
-  const today = new Date().toISOString().split('T')[0];
+  const today = getToday();
   switch (type) {
     case 'morning': {
       const pending = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE user_id = ? AND scheduled_date = ? AND status = 'pending'").get(user.id, today);
@@ -128,7 +231,7 @@ function generateDailyTasks() {
   const db = getWrappedDb();
   const user = db.prepare('SELECT * FROM users LIMIT 1').get();
   if (!user) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = getToday();
   const existing = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE user_id = ? AND scheduled_date = ?").get(user.id, today);
   if (existing.c > 0) return;
   const allTasks = [
@@ -151,7 +254,7 @@ function checkPendingTasks() {
   const db = getWrappedDb();
   const user = db.prepare('SELECT id, username FROM users LIMIT 1').get();
   if (!user) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = getToday();
   const pending = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE user_id = ? AND scheduled_date = ? AND status = 'pending'").get(user.id, today);
   if (pending.c > 0) addSystemMessage(`喵~ ${user.username}，今天还有${pending.c}个任务没完成哦！明天继续加油~ 💪`);
 }
@@ -183,23 +286,27 @@ function generateDailyReport() {
   const db = getWrappedDb();
   const user = db.prepare('SELECT id FROM users LIMIT 1').get();
   if (!user) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = getToday();
   const tasks = db.prepare("SELECT * FROM tasks WHERE user_id = ? AND scheduled_date = ?").all(user.id, today);
   const completed = tasks.filter(t => t.status === 'completed').length;
   db.prepare("INSERT OR REPLACE INTO daily_reports (id, user_id, report_date, summary, tasks_completed, tasks_total, exp_gained, coins_gained, highlights, suggestions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(uuid(), user.id, today, `今天完成了${completed}/${tasks.length}个任务。`, completed, tasks.length, completed * 20, completed * 10, '[]', '[]');
   saveDb();
 }
 
-function addSystemMessage(text) {
+function addSystemMessage(text, priority = 'normal') {
   const db = getWrappedDb();
   const user = db.prepare('SELECT id FROM users LIMIT 1').get();
-  if (user) {
-    db.prepare("INSERT INTO chat_history (user_id, role, content) VALUES (?, 'system', ?)").run(user.id, text);
-    saveDb();
-    // 推送到飞书和微信
-    pushToFeishu(text).catch(() => {});
-    sendToSelf(text).catch(() => {});
-  }
+  if (!user) return;
+  
+  // 智能通知检查
+  const notifyCheck = shouldNotify(db, user.id, priority);
+  if (!notifyCheck.should && priority !== 'urgent') return;
+  
+  db.prepare("INSERT INTO chat_history (user_id, role, content) VALUES (?, 'system', ?)").run(user.id, text);
+  logNotification(db, user.id, 'system_message', priority, text);
+  saveDb();
+  pushToFeishu(text).catch(() => {});
+  sendToSelf(text).catch(() => {});
 }
 
 function catGainExp(amount, reason) {
@@ -227,8 +334,9 @@ async function generateWeeklyPlan() {
   const user = db.prepare('SELECT * FROM users LIMIT 1').get();
   if (!user) return;
   const today = new Date();
-  const weekStart = new Date(today - today.getDay() * 86400000).toISOString().split('T')[0];
-  const weekEnd = new Date(today.getTime() + (6 - today.getDay()) * 86400000).toISOString().split('T')[0];
+  const todayDate = new Date();
+  const weekStart = new Date(todayDate.getTime() - todayDate.getDay() * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
+  const weekEnd = new Date(todayDate.getTime() + (6 - todayDate.getDay()) * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
   const existing = db.prepare("SELECT id FROM periodic_plans WHERE user_id = ? AND plan_type = 'weekly' AND period_start = ?").get(user.id, weekStart);
   if (existing) return;
   const weakest = ['health','finance','learning','career','social','mental','habits','creativity'].map(d => ({ dim: d, val: user['stat_'+d] })).sort((a, b) => a.val - b.val).slice(0, 3);

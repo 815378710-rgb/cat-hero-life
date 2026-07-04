@@ -22,6 +22,17 @@
       </div>
     </div>
 
+    <!-- 习惯嫁接建议 -->
+    <div v-if="stackingSuggestion" class="card stacking-card">
+      <h3>🔗 习惯嫁接建议</h3>
+      <p>{{ stackingSuggestion.suggestion }}</p>
+      <p class="text-dim">预期成功率：{{ stackingSuggestion.expectedSuccessRate }}%</p>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary" @click="acceptStacking(stackingSuggestion.anchor.id, habits[habits.length-1]?.id)">接受</button>
+        <button class="btn btn-secondary" @click="stackingSuggestion = null">跳过</button>
+      </div>
+    </div>
+
     <!-- Create Modal -->
     <div v-if="showCreate" class="modal-overlay active" @click="showCreate = false">
       <div class="modal" @click.stop>
@@ -59,12 +70,28 @@ const logHabit = async (id: string) => {
   await load()
 }
 
+const stackingSuggestion = ref<any>(null)
+
 const createHabit = async () => {
   if (!form.value.name.trim()) return
-  await fetch('/api/habits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form.value) })
+  const res = await fetch('/api/habits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form.value) })
+  const data = await res.json()
   showCreate.value = false
   form.value = { name: '', dimension_id: 'health', target_count: 1, icon: '🎯' }
   await load()
+  // 习惯嫁接建议
+  if (data.id) {
+    try {
+      const stackRes = await fetch('/api/neural/habit-stacking/suggest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ habitId: data.id }) })
+      const stackData = await stackRes.json()
+      if (stackData.suggestion) stackingSuggestion.value = stackData.suggestion
+    } catch {}
+  }
+}
+
+const acceptStacking = async (anchorId: string, newHabitId: string) => {
+  await fetch('/api/neural/habit-stacking/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newHabitId, anchorHabitId: anchorId }) })
+  stackingSuggestion.value = null
 }
 
 onMounted(load)

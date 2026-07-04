@@ -39,7 +39,7 @@ router.post('/:id/log', (req, res) => {
     
     db.prepare('INSERT INTO habit_logs (id, habit_id, user_id, count) VALUES (?, ?, ?, ?)').run(uuid(), habit.id, user.id, req.body.count || 1);
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
     const todayLogs = db.prepare('SELECT COUNT(*) as c FROM habit_logs WHERE habit_id = ? AND date(logged_at) = ?').get(habit.id, today);
     const yesterdayLogs = db.prepare('SELECT COUNT(*) as c FROM habit_logs WHERE habit_id = ? AND date(logged_at) = ?').get(habit.id, yesterday);

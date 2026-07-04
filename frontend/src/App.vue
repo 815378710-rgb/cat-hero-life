@@ -1,5 +1,8 @@
 <template>
   <div id="app" :class="{ 'sidebar-open': sidebarOpen }">
+    <!-- Toast -->
+    <ToastContainer />
+
     <!-- Loading Bar -->
     <div id="global-loading" class="loading-bar">
       <div class="loading-bar-inner"></div>
@@ -45,6 +48,10 @@
           <NavItem page="character" icon="fas fa-user-shield" label="角色面板" @click="navigate" />
           <NavItem page="achievements" icon="fas fa-trophy" label="成就" @click="navigate" />
           <NavItem page="shop" icon="fas fa-store" label="商店" @click="navigate" />
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">智能</div>
+          <NavItem page="neural" icon="fas fa-brain" label="神经系统" @click="navigate" />
         </div>
         <div class="nav-section">
           <div class="nav-section-title">数据</div>
@@ -100,6 +107,7 @@ import { useUserStore } from '@/stores/user'
 import { useI18n } from 'vue-i18n'
 import { setLocale } from '@/i18n'
 import NavItem from '@/components/NavItem.vue'
+import ToastContainer from '@/components/ToastContainer.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
