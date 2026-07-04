@@ -4,6 +4,6 @@ COPY package*.json ./
 RUN npm install --production
 COPY server/ ./server/
 COPY dist/ ./dist/
-COPY data/ ./data/
+RUN mkdir -p data
 EXPOSE 3000
 CMD ["node", "server/index.js"]

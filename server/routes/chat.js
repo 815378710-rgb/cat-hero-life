@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import { chatWithLLM, buildSystemPrompt, analyzeMessage, isAiEnabled } from '../services/ai-engine.js';
+import { chatWithLLM, buildSystemPrompt, analyzeMessage, isAiEnabled, getAiConfig } from '../services/ai-engine.js';
 import { getUnlockedFeatures, isFeatureUnlocked, getNextUnlock } from '../services/growth.js';
 import { getAiMood, getMoodPrefix } from '../services/life-engine.js';
 import { extractAndSaveData } from '../services/data-extractor.js';
@@ -164,18 +164,20 @@ router.post('/stream', async (req, res) => {
       ...recentHistory.map(m => ({ role: m.role === 'system' ? 'assistant' : m.role, content: m.content }))
     ];
     
-    // 调用DeepSeek API（流式）
-    const axios = (await import('axios')).default;
-    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || user.ai_api_key || '';
+    // 获取AI配置
+    const aiConf = getAiConfig();
+    const DEEPSEEK_API_KEY = aiConf.apiKey || '';
+    const DEEPSEEK_MODEL = aiConf.model || 'deepseek-chat';
     const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
     
     let fullResponse = '';
     
     try {
+      const axios = (await import('axios')).default;
       const streamResponse = await axios.post(
         `${DEEPSEEK_BASE_URL}/chat/completions`,
         {
-          model: 'deepseek-chat',
+          model: DEEPSEEK_MODEL,
           messages: messages,
           temperature: 0.85,
           max_tokens: 800,
