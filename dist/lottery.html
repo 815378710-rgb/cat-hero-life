@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ff6b9d">
+<title>彩票账本 · 猫猫侠</title>
+<script>
+/* 访问口令：本页是独立 HTML，不走 Vue 的 AccessGate。
+   任一 API 返回 401 时回到首页解锁，并记下来源以便解锁后自动返回。 */
+(function () {
+  var raw = window.fetch.bind(window);
+  window.fetch = function () {
+    return raw.apply(null, arguments).then(function (res) {
+      if (res.status === 401) {
+        try { sessionStorage.setItem('ch_after_unlock', location.pathname + location.search); } catch (e) {}
+        location.href = '/';
+      }
+      return res;
+    });
+  };
+})();
+</script>
+<style>
+:root{
+  --bg:#f4f5fa; --card:#ffffff; --card2:#fafbfe; --text:#1e2233; --muted:#8a90a3;
+  --primary:#ff6b9d; --primary-d:#e94f86; --line:#e9ecf4;
+  --red:#e8443a; --blue:#2f80ed; --gold:#f2a33c; --green:#22b573;
+  --shadow:0 2px 12px rgba(30,34,51,.06);
+}
+html[data-theme="dark"]{
+  --bg:#14161f; --card:#1d202b; --card2:#222633; --text:#eef0f6; --muted:#9aa1b5;
+  --primary:#ff6b9d; --primary-d:#ff85ae; --line:#2b3040;
+  --shadow:0 2px 14px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif;
+  font-size:15px;line-height:1.5;padding-bottom:40px}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+.hd{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;
+  padding:12px 14px;background:var(--card);border-bottom:1px solid var(--line)}
+.hd h1{flex:1;margin:0;font-size:17px;font-weight:600}
+.hd .ic{width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  border-radius:10px;background:var(--card2);font-size:16px}
+.wrap{padding:14px;max-width:620px;margin:0 auto}
+
+.hero{background:linear-gradient(135deg,var(--primary),#a06bff);border-radius:18px;
+  padding:18px 18px 16px;color:#fff;box-shadow:0 6px 20px rgba(255,107,157,.28);margin-bottom:14px}
+.hero .lb{font-size:12px;opacity:.85;letter-spacing:.5px}
+.hero .val{font-size:34px;font-weight:700;margin:2px 0 4px;letter-spacing:-.5px}
+.hero .sub{font-size:12.5px;opacity:.9}
+.hero .row{display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.25)}
+.hero .row div{font-size:12px;opacity:.92}
+.hero .row b{display:block;font-size:17px;font-weight:600;margin-top:1px}
+
+.tabs{display:flex;gap:6px;background:var(--card);border-radius:12px;padding:4px;margin-bottom:12px;box-shadow:var(--shadow)}
+.tabs button{flex:1;padding:8px 0;border-radius:9px;font-size:13.5px;color:var(--muted);font-weight:500}
+.tabs button.on{background:var(--primary);color:#fff;font-weight:600}
+
+.chips{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px}
+.chip{padding:6px 14px;border-radius:999px;background:var(--card);color:var(--muted);
+  font-size:13px;white-space:nowrap;border:1px solid var(--line)}
+.chip.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
+.grid .it{background:var(--card);border-radius:13px;padding:11px 10px;box-shadow:var(--shadow);text-align:center}
+.grid .it .k{font-size:11px;color:var(--muted)}
+.grid .it .v{font-size:17px;font-weight:650;margin-top:3px}
+
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.btn{padding:12px;border-radius:13px;background:var(--card);font-weight:600;font-size:14px;
+  box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{grid-column:span 2;background:var(--primary);color:#fff;box-shadow:0 4px 14px rgba(255,107,157,.35)}
+.btn:active{transform:scale(.985)}
+
+.card{background:var(--card);border-radius:15px;padding:14px;box-shadow:var(--shadow);margin-bottom:14px}
+.card-hd{display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:14.5px;margin-bottom:11px}
+.card-hd .more{font-size:12px;color:var(--muted);font-weight:400}
+
+.ball{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+  border-radius:50%;color:#fff;font-size:13.5px;font-weight:650;margin:2px}
+.ball.r{background:linear-gradient(145deg,#ff6a5e,var(--red))}
+.ball.b{background:linear-gradient(145deg,#5aa9ff,var(--blue))}
+.ball.sm{width:25px;height:25px;font-size:12px}
+.ball.plus{background:transparent;color:var(--muted);width:12px;font-weight:400}
+
+.tk{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.tk:last-child{border-bottom:none;padding-bottom:0}
+.tk .thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--card2);flex:0 0 auto}
+.tk .thumb.ph{display:flex;align-items:center;justify-content:center;font-size:20px}
+.tk .body{flex:1;min-width:0}
+.tk .meta{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-bottom:3px;flex-wrap:wrap}
+.tk .tag{padding:1px 7px;border-radius:6px;background:var(--card2);font-size:11px}
+.tk .tag.won{background:rgba(242,163,60,.16);color:var(--gold);font-weight:600}
+.tk .tag.lost{background:rgba(138,144,163,.14)}
+.tk .tag.pending{background:rgba(255,107,157,.14);color:var(--primary)}
+.tk .nums{margin:1px 0}
+.tk .price{font-size:12.5px;color:var(--muted);margin-top:3px}
+.tk .price b{color:var(--gold);font-weight:650;font-size:14px}
+.tk .del{align-self:center;color:var(--muted);font-size:17px;padding:6px 4px}
+
+.tl{display:flex;align-items:flex-end;gap:6px;height:88px;overflow-x:auto;padding-top:6px}
+.tl .col{flex:0 0 auto;width:26px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.tl .bars{display:flex;gap:2px;align-items:flex-end;height:64px}
+.tl .bar{width:8px;border-radius:3px 3px 0 0;min-height:2px}
+.tl .bar.c{background:#c8cddb}
+.tl .bar.p{background:linear-gradient(180deg,#ffd06b,var(--gold))}
+.tl .d{font-size:9.5px;color:var(--muted);margin-top:3px;white-space:nowrap}
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:22px 0}
+
+.sheet{position:fixed;inset:0;z-index:60;display:none}
+.sheet.on{display:block}
+.sheet .mask{position:absolute;inset:0;background:rgba(10,12,20,.5);backdrop-filter:blur(2px)}
+.sheet .panel{position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow-y:auto;
+  background:var(--card);border-radius:20px 20px 0 0;padding:18px 16px 26px;
+  animation:up .22s ease-out;max-width:620px;margin:0 auto}
+@keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+.sheet h3{margin:0 0 12px;font-size:16.5px}
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
+.fld input,.fld select,.fld textarea{width:100%;padding:11px 12px;border-radius:11px;
+  border:1px solid var(--line);background:var(--card2);color:var(--text);font-size:15px;font-family:inherit}
+.fld input:focus,.fld textarea:focus{outline:none;border-color:var(--primary)}
+.fld .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+.row2{display:flex;gap:10px}
+.row2>*{flex:1}
+.recog{background:var(--card2);border-radius:12px;padding:11px;margin-bottom:12px}
+.recog .line{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:7px}
+.conf{font-size:11.5px;padding:2px 8px;border-radius:7px;background:rgba(34,181,115,.14);color:var(--green)}
+.conf.medium{background:rgba(242,163,60,.16);color:var(--gold)}
+.conf.low{background:rgba(232,68,58,.14);color:var(--red)}
+.btnrow{display:flex;gap:10px;margin-top:14px}
+.btnrow .btn{flex:1;box-shadow:none;border:1px solid var(--line)}
+.btnrow .btn.primary{border:none;box-shadow:0 4px 14px rgba(255,107,157,.3)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);
+  border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:99;
+  background:rgba(24,26,34,.92);color:#fff;padding:9px 16px;border-radius:11px;font-size:13.5px;
+  opacity:0;transition:.2s;pointer-events:none;max-width:88vw;text-align:center}
+.toast.on{opacity:1}
+html[data-embedded="1"] .hd a.ic{visibility:hidden}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <a class="ic" href="/" title="返回">←</a>
+  <h1>彩票账本</h1>
+  <button class="ic" id="themeBtn" title="切换主题">🌙</button>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <div class="lb" id="heroLabel">本月收益</div>
+    <div class="val" id="heroNet">0</div>
+    <div class="sub" id="heroSub">还没有记录</div>
+    <div class="row">
+      <div>花费<b id="heroCost">0</b></div>
+      <div>中奖<b id="heroPrize">0</b></div>
+      <div>中奖率<b id="heroRate">-</b></div>
+    </div>
+  </section>
+
+  <div class="tabs" id="periodTabs">
+    <button data-p="day">日</button>
+    <button data-p="week">周</button>
+    <button data-p="month" class="on">月</button>
+    <button data-p="year">年</button>
+    <button data-p="all">全部</button>
+  </div>
+
+  <div class="chips" id="gameChips">
+    <button class="chip on" data-g="">全部玩法</button>
+    <button class="chip" data-g="dlt">🔴 大乐透</button>
+    <button class="chip" data-g="ssq">🔵 双色球</button>
+  </div>
+
+  <div class="grid">
+    <div class="it"><div class="k">投注注数</div><div class="v" id="sBet">0</div></div>
+    <div class="it"><div class="k">已开奖</div><div class="v" id="sChecked">0</div></div>
+    <div class="it"><div class="k">待开奖</div><div class="v" id="sPending">0</div></div>
+    <div class="it"><div class="k">中奖次数</div><div class="v" id="sWon" style="color:var(--gold)">0</div></div>
+    <div class="it"><div class="k">未中</div><div class="v" id="sLost">0</div></div>
+    <div class="it"><div class="k">回本率</div><div class="v" id="sRoi">-</div></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" id="btnPhoto">📷 拍照 / 传票</button>
+    <button class="btn" id="btnManual">✏️ 手动录入</button>
+    <button class="btn" id="btnCheck">🔄 同步开奖</button>
+  </div>
+
+  <section class="card">
+    <div class="card-hd"><span>最近开奖</span><span class="more" id="drawMore"></span></div>
+    <div id="drawBox"></div>
+  </section>
+
+  <section class="card" id="tlCard">
+    <div class="card-hd"><span>走势</span><span class="more">灰=花费 金=中奖</span></div>
+    <div class="tl" id="tl"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd"><span>我的彩票</span><span class="more" id="tkMore"></span></div>
+    <div id="tkList"></div>
+  </section>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" capture="environment" hidden>
+
+<div class="sheet" id="sheet">
+  <div class="mask" data-close></div>
+  <div class="panel" id="sheetPanel"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+// 被主界面以 iframe 嵌入时，隐藏自带的返回按钮（避免嵌套）
+if (window.self !== window.top) {
+  document.documentElement.setAttribute('data-embedded', '1');
+}
+
+var state = { period:'month', game:'', data:null, meta:null, busy:false };
+var $ = function(id){ return document.getElementById(id); };
+
+function toast(msg, ms){
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(function(){ t.classList.remove('on'); }, ms || 2200);
+}
+
+function pad(n){ return String(Number(n)).padStart(2,'0'); }
+function money(n){
+  n = Number(n) || 0;
+  return (Math.abs(n) >= 10000 ? (n/10000).toFixed(2).replace(/\.?0+$/,'') + ' 万' : n.toFixed(n % 1 ? 2 : 0));
+}
+function sign(n){ return n > 0 ? '+' : ''; }
+
+function api(path, opts){
+  opts = opts || {};
+  var url = path + (path.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
+  return fetch(url, Object.assign({
+    headers: { 'Content-Type': 'application/json' }
+  }, opts)).then(function(r){
+    return r.json().then(function(j){
+      if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      return j;
+    });
+  });
+}
+
+// ===== 主题 =====
+(function initTheme(){
+  var saved = localStorage.getItem('lottery-theme');
+  var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(dark);
+  $('themeBtn').onclick = function(){
+    var now = document.documentElement.getAttribute('data-theme') !== 'dark';
+    applyTheme(now);
+    localStorage.setItem('lottery-theme', now ? 'dark' : 'light');
+  };
+})();
+function applyTheme(dark){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  $('themeBtn').textContent = dark ? '☀️' : '🌙';
+  var tb = document.querySelector('meta[name=theme-color]');
+  if (tb) tb.setAttribute('content', dark ? '#1d202b' : '#ff6b9d');
+}
+
+// ===== 渲染 =====
+
+function ballHtml(n, type, small){
+  return '<span class="ball ' + type + (small ? ' sm' : '') + '">' + pad(n) + '</span>';
+}
+function numsHtml(numbers, game, small){
+  if (!numbers || !numbers.main) return '';
+  var mainType = 'r', extraType = 'b';
+  var h = numbers.main.map(function(n){ return ballHtml(n, mainType, small); }).join('');
+  h += '<span class="ball plus">+</span>';
+  h += (numbers.extra || []).map(function(n){ return ballHtml(n, extraType, small); }).join('');
+  return h;
+}
+
+function renderStats(){
+  var d = state.data;
+  if (!d) return;
+  var s = d.stats.summary;
+  var net = s.net;
+  $('heroNet').textContent = sign(net) + money(net);
+  $('heroCost').textContent = money(s.cost);
+  $('heroPrize').textContent = money(s.prize);
+  $('heroRate').textContent = s.checkedCount ? s.winRate + '%' : '-';
+  var label = { day:'今日收益', week:'本周收益', month:'本月收益', year:'今年收益', all:'累计收益' }[state.period] || '收益';
+  $('heroLabel').textContent = label;
+  $('heroSub').textContent = s.betCount
+    ? ('共 ' + s.betCount + ' 注 · 已开奖 ' + s.checkedCount + ' 注 · 中 ' + s.wonCount + ' 注')
+    : '还没有记录，点下面按钮记一笔';
+
+  $('sBet').textContent = s.betCount;
+  $('sChecked').textContent = s.checkedCount;
+  $('sPending').textContent = s.pendingCount;
+  $('sWon').textContent = s.wonCount;
+  $('sLost').textContent = s.lostCount;
+  $('sRoi').textContent = s.cost > 0 ? s.roi + '%' : '-';
+  $('sRoi').style.color = s.cost > 0 ? (s.roi >= 0 ? 'var(--green)' : 'var(--red)') : '';
+}
+
+function renderTimeline(){
+  var tl = (state.data && state.data.stats.timeline) || [];
+  var box = $('tl');
+  if (!tl.length){ box.innerHTML = '<div class="empty" style="width:100%">暂无数据</div>'; return; }
+  var max = 1;
+  tl.forEach(function(x){ max = Math.max(max, x.cost, x.prize); });
+  box.innerHTML = tl.slice(-30).map(function(x){
+    var ch = Math.max(2, Math.round(x.cost / max * 64));
+    var ph = x.prize > 0 ? Math.max(2, Math.round(x.prize / max * 64)) : 0;
+    return '<div class="col" title="' + x.date + ' 花费 ' + x.cost + ' 中奖 ' + x.prize + '">' +
+      '<div class="bars">' +
+        '<div class="bar c" style="height:' + ch + 'px"></div>' +
+        (ph ? '<div class="bar p" style="height:' + ph + 'px"></div>' : '') +
+      '</div><div class="d">' + x.date.slice(5) + '</div></div>';
+  }).join('');
+}
+
+function renderDraws(){
+  var d = state.data.draws || {};
+  var info = state.data.gameInfo || {};
+  var keys = state.game ? [state.game] : ['dlt','ssq'];
+  var h = '';
+  keys.forEach(function(k){
+    var dr = d[k];
+    var g = info[k] || {};
+    if (!dr){ h += '<div class="empty">' + (g.name || k) + '：暂无开奖数据</div>'; return; }
+    h += '<div style="margin-bottom:10px">' +
+      '<div class="meta" style="display:flex;gap:8px;font-size:12px;color:var(--muted);margin-bottom:5px">' +
+        '<b style="color:var(--text);font-size:13px">' + (g.name || k) + '</b><span>第 ' + dr.issue + ' 期</span><span>' + dr.draw_date + '</span></div>' +
+      '<div>' + numsHtml(dr.numbers, k) + '</div>' +
+      '<div style="font-size:11.5px;color:var(--muted);margin-top:4px">奖池 ' + (dr.pool || '-') + '</div>' +
+    '</div>';
+  });
+  $('drawBox').innerHTML = h || '<div class="empty">暂无开奖数据，点「同步开奖」拉取</div>';
+  var nexts = [];
+  (state.meta && state.meta.games || []).forEach(function(g){
+    if (state.game && g.key !== state.game) return;
+    var n = g.next || {};
+    if (!n.draw_date) return;
+    nexts.push(g.short + ' ' + (n.issue ? n.issue + ' 期 ' : '') + n.draw_date + (n.draw_time ? ' ' + n.draw_time : ''));
+  });
+  $('drawMore').textContent = nexts.length ? ('下次 ' + nexts.join(' · ')) : '';
+}
+
+function renderTickets(){
+  var list = (state.data && state.data.tickets) || [];
+  var box = $('tkList');
+  $('tkMore').textContent = list.length ? ('共 ' + list.length + ' 注') : '';
+  if (!list.length){ box.innerHTML = '<div class="empty">还没有彩票记录<br>拍张彩票照片发给我吧 📷</div>'; return; }
+
+  box.innerHTML = list.map(function(t){
+    var tagCls = t.status === 'won' ? 'won' : (t.status === 'lost' ? 'lost' : 'pending');
+    var tagTxt = t.status === 'won' ? ('中 ' + t.levelName + (t.hitText ? ' ' + t.hitText : ''))
+                : (t.status === 'lost' ? '未中' : '待开奖');
+    var thumb = t.image
+      ? '<img class="thumb" src="' + t.image + '" loading="lazy">'
+      : '<div class="thumb ph">' + (t.game === 'dlt' ? '🔴' : '🔵') + '</div>';
+    var price = t.status === 'won'
+      ? '<b>+' + money(t.prize) + '</b> · 花费 ' + money(t.cost)
+      : '花费 ' + money(t.cost);
+    return '<div class="tk">' + thumb +
+      '<div class="body">' +
+        '<div class="meta">' +
+          '<span class="tag ' + tagCls + '">' + tagTxt + '</span>' +
+          '<span>' + (t.gameName || t.game) + '</span>' +
+          (t.issue ? '<span>第 ' + t.issue + ' 期</span>' : '<span>未定期号</span>') +
+          (t.multiple > 1 ? '<span>' + t.multiple + ' 倍</span>' : '') +
+          (t.isAppend ? '<span>追加</span>' : '') +
+        '</div>' +
+        '<div class="nums">' + numsHtml(t.numbers, t.game, true) + '</div>' +
+        '<div class="price">' + price + (t.betDate ? ' · ' + t.betDate : '') + '</div>' +
+      '</div>' +
+      '<button class="del" data-del="' + t.id + '" title="删除">✕</button>' +
+    '</div>';
+  }).join('');
+
+  box.querySelectorAll('[data-del]').forEach(function(b){
+    b.onclick = function(){
+      var id = b.getAttribute('data-del');
+      if (!confirm('删除这张彩票记录？')) return;
+      api('/api/lottery/tickets/' + id, { method: 'DELETE' })
+        .then(function(){ toast('已删除'); load(); })
+        .catch(function(e){ toast('删除失败：' + e.message); });
+    };
+  });
+}
+
+function renderAll(){
+  renderStats(); renderTimeline(); renderDraws(); renderTickets();
+}
+
+function load(){
+  return api('/api/lottery/overview?period=' + state.period + (state.game ? '&game=' + state.game : ''))
+    .then(function(d){ state.data = d; renderAll(); })
+    .catch(function(e){ toast('加载失败：' + e.message); });
+}
+
+function loadMeta(){
+  return api('/api/lottery/meta').then(function(d){ state.meta = d; });
+}
+
+// ===== 周期 / 玩法切换 =====
+
+$('periodTabs').onclick = function(e){
+  var b = e.target.closest('button'); if (!b) return;
+  state.period = b.getAttribute('data-p');
+  Array.prototype.forEach.call(this.children, function(x){ x.classList.toggle('on', x === b); });
+  load();
+};
+$('gameChips').onclick = function(e){
+  var b = e.target.closest('button'); if (!b) return;
+  state.game = b.getAttribute('data-g');
+  Array.prototype.forEach.call(this.children, function(x){ x.classList.toggle('on', x === b); });
+  load();
+};
+
+// ===== 弹层 =====
+
+function openSheet(html){
+  $('sheetPanel').innerHTML = html;
+  $('sheet').classList.add('on');
+}
+function closeSheet(){ $('sheet').classList.remove('on'); }
+$('sheet').addEventListener('click', function(e){
+  if (e.target.hasAttribute('data-close')) closeSheet();
+});
+
+// ===== 拍照识别 =====
+
+$('btnPhoto').onclick = function(){ $('fileInput').click(); };
+
+$('fileInput').onchange = function(){
+  var f = this.files && this.files[0];
+  this.value = '';
+  if (!f) return;
+  compressImage(f).then(function(b64){ recognize(b64); }).catch(function(e){ toast('图片处理失败：' + e.message); });
+};
+
+function compressImage(file){
+  return new Promise(function(resolve, reject){
+    var reader = new FileReader();
+    reader.onerror = function(){ reject(new Error('读取失败')); };
+    reader.onload = function(){
+      var img = new Image();
+      img.onerror = function(){ reject(new Error('不是有效图片')); };
+      img.onload = function(){
+        var max = 1400, w = img.width, h = img.height;
+        if (w > max || h > max){
+          var s = Math.min(max / w, max / h);
+          w = Math.round(w * s); h = Math.round(h * s);
+        }
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function recognize(b64){
+  openSheet('<h3>正在识别彩票…</h3><div style="text-align:center;padding:26px 0;color:var(--muted)">' +
+    '<div class="ball r" style="width:38px;height:38px;font-size:18px;background:var(--card2);color:var(--primary)">⏳</div>' +
+    '<div style="margin-top:12px;font-size:13px">读号码中，大约 5-15 秒</div></div>');
+  api('/api/lottery/recognize', { method: 'POST', body: JSON.stringify({ image: b64 }) })
+    .then(function(r){
+      if (!r.ok){ openRecognizeFallback(r, b64); return; }
+      openRecognizeConfirm(r);
+    })
+    .catch(function(e){
+      openSheet('<h3>识别失败</h3><div style="color:var(--muted);font-size:13.5px">' + e.message +
+        '</div><div class="btnrow"><button class="btn" data-close>关闭</button>' +
+        '<button class="btn primary" id="toManual">手动录入</button></div>');
+      var m = $('toManual');
+      if (m) m.onclick = function(){ closeSheet(); openManual(); };
+    });
+}
+
+function openRecognizeFallback(r, b64){
+  openSheet('<h3>没读出来 😿</h3>' +
+    '<div style="color:var(--muted);font-size:13.5px;margin-bottom:12px">' +
+    (r.error || '图片可能太模糊，或者不是彩票票面。') + '</div>' +
+    (b64 ? '<img src="' + b64 + '" style="width:100%;border-radius:12px;margin-bottom:12px">' : '') +
+    '<div class="btnrow"><button class="btn" data-close>重新拍</button>' +
+    '<button class="btn primary" id="toManual2">手动录入</button></div>');
+  var m = $('toManual2');
+  if (m) m.onclick = function(){ closeSheet(); openManual(); };
+}
+
+function openRecognizeConfirm(r){
+  var g = state.meta && state.meta.games.filter(function(x){ return x.key === r.game; })[0] || {};
+  var confCls = r.confidence === 'high' ? '' : (r.confidence === 'medium' ? 'medium' : 'low');
+  var confTxt = { high:'识别清晰', medium:'识别一般，请核对', low:'识别模糊，务必核对' }[r.confidence] || '请核对';
+
+  var nums = r.tickets.map(function(t, i){
+    return '<div style="padding:6px 0">' + numsHtml(t, r.game, true) + '</div>';
+  }).join('');
+
+  openSheet(
+    '<h3>确认彩票信息</h3>' +
+    '<div class="recog">' +
+      '<div class="line"><span>' + (r.gameName || '已识别') + ' · 共 ' + r.tickets.length + ' 注</span>' +
+      '<span class="conf ' + confCls + '">' + confTxt + '</span></div>' +
+      (r.image ? '<img src="' + r.image + '" style="width:100%;max-height:180px;object-fit:contain;border-radius:10px;margin-bottom:8px">' : '') +
+      '<div>' + nums + '</div>' +
+      (r.remark ? '<div style="font-size:11.5px;color:var(--muted);margin-top:6px">' + r.remark + '</div>' : '') +
+    '</div>' +
+    '<div class="fld"><label>期号</label>' +
+      '<input id="fIssue" value="' + (r.issue || '') + '" placeholder="例如 26113，留空则按购买日自动匹配">' +
+      '<div class="hint" id="issueHint"></div></div>' +
+    '<div class="row2">' +
+      '<div class="fld"><label>购买日期</label><input id="fDate" type="date" value="' + (r.betDate || '') + '"></div>' +
+      '<div class="fld"><label>倍数</label><input id="fMult" type="number" min="1" max="99" value="' + (r.multiple || 1) + '"></div>' +
+    '</div>' +
+    '<div class="row2">' +
+      '<div class="fld"><label>每注花费(元)</label><input id="fCost" type="number" step="0.5" min="0" value="' + (r.cost ? (r.cost / Math.max(1,r.tickets.length)).toFixed(2) : ((g.basePrice||2) + (r.isAppend ? (g.appendPrice||1) : 0))) + '"></div>' +
+      (r.game === 'dlt'
+        ? '<div class="fld"><label>追加投注</label><select id="fAppend"><option value="0"' + (r.isAppend ? '' : ' selected') + '>否</option><option value="1"' + (r.isAppend ? ' selected' : '') + '>是（+1元/注）</option></select></div>'
+        : '<div class="fld"><label>玩法</label><input value="双色球" disabled></div>') +
+    '</div>' +
+    '<div class="btnrow">' +
+      '<button class="btn" data-close>取消</button>' +
+      '<button class="btn primary" id="saveTk">保存 ' + r.tickets.length + ' 注</button>' +
+    '</div>'
+  );
+
+  var iss = $('fIssue');
+  if (iss && !iss.value && g.next && g.next.issue) iss.value = g.next.issue;
+  var hint = $('issueHint');
+  if (hint) hint.textContent = g.next && g.next.issue
+    ? ('下一期是 ' + g.next.issue + ' 期（' + g.next.draw_date + ' ' + g.next.draw_time + ' 开奖）') : '';
+
+  $('saveTk').onclick = function(){
+    if (state.busy) return;
+    var btn = this;
+    state.busy = true;
+    btn.innerHTML = '<span class="spin"></span> 保存中';
+    api('/api/lottery/tickets/bulk', {
+      method: 'POST',
+      body: JSON.stringify({
+        issue: $('fIssue').value.trim(),
+        betDate: $('fDate').value,
+        image: r.image,
+        tickets: r.tickets.map(function(t){
+          return {
+            game: r.game, main: t.main, extra: t.extra,
+            multiple: Number($('fMult').value) || 1,
+            isAppend: r.game === 'dlt' ? $('fAppend').value === '1' : false,
+            cost: Number($('fCost').value) || 0
+          };
+        })
+      })
+    }).then(function(res){
+      state.busy = false;
+      closeSheet();
+      toast('已记录 ' + res.count + ' 注' + (res.errors && res.errors.length ? '，' + res.errors.length + ' 注失败' : ''));
+      load();
+    }).catch(function(e){
+      state.busy = false;
+      btn.innerHTML = '重试保存';
+      toast('保存失败：' + e.message);
+    });
+  };
+}
+
+// ===== 手动录入 =====
+
+$('btnManual').onclick = function(){ openManual(); };
+
+function openManual(){
+  var games = (state.meta && state.meta.games) || [];
+  var g0 = state.game || 'dlt';
+  openSheet('<h3>手动录入</h3>' +
+    '<div class="fld"><label>玩法</label><select id="mGame">' +
+      games.map(function(g){ return '<option value="' + g.key + '"' + (g.key === g0 ? ' selected' : '') + '>' + g.name + '</option>'; }).join('') +
+    '</select></div>' +
+    '<div class="fld"><label>号码</label>' +
+      '<input id="mNums" placeholder="例如 01 03 05 10 22 + 03 09">' +
+      '<div class="hint" id="mHint"></div></div>' +
+    '<div class="row2">' +
+      '<div class="fld"><label>期号</label><input id="mIssue" placeholder="留空自动匹配"></div>' +
+      '<div class="fld"><label>购买日期</label><input id="mDate" type="date"></div>' +
+    '</div>' +
+    '<div class="row2">' +
+      '<div class="fld"><label>倍数</label><input id="mMult" type="number" min="1" max="99" value="1"></div>' +
+      '<div class="fld"><label>每注花费(元)</label><input id="mCost" type="number" step="0.5" min="0" value="2"></div>' +
+    '</div>' +
+    '<div class="fld" id="mAppendWrap" style="display:none"><label>追加投注</label>' +
+      '<select id="mAppend"><option value="0">否</option><option value="1">是（+1元/注）</option></select></div>' +
+    '<div class="btnrow"><button class="btn" data-close>取消</button>' +
+      '<button class="btn" id="mRand">机选一注</button>' +
+      '<button class="btn primary" id="mSave">保存</button></div>');
+
+  var today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+  $('mDate').value = today;
+
+  function syncGame(){
+    var g = games.filter(function(x){ return x.key === $('mGame').value; })[0];
+    if (!g) return;
+    $('mHint').textContent = g.main.count + ' 个' + g.main.label + '（1-' + g.main.max + '）+ ' + g.extra.count + ' 个' + g.extra.label + '（1-' + g.extra.max + '）';
+    $('mNums').placeholder = g.key === 'dlt' ? '前区 5 个(01-35) + 后区 2 个(01-12)' : '红球 6 个(01-33) + 蓝球 1 个(01-16)';
+    $('mAppendWrap').style.display = g.key === 'dlt' ? 'block' : 'none';
+    $('mCost').value = (g.basePrice || 2) + (g.key === 'dlt' && $('mAppend').value === '1' ? (g.appendPrice || 1) : 0);
+    $('mIssue').placeholder = g.next && g.next.issue ? ('下一期 ' + g.next.issue + '（' + g.next.draw_date + '）') : '留空自动匹配';
+    if (g.next && g.next.issue) $('mIssue').placeholder = '默认为 ' + g.next.issue + ' 期';
+  }
+  syncGame();
+  $('mGame').onchange = syncGame;
+
+  $('mRand').onclick = function(){
+    var g = games.filter(function(x){ return x.key === $('mGame').value; })[0];
+    if (!g) return;
+    var pick = function(count, max){
+      var s = [], pool = [];
+      for (var i = 1; i <= max; i++) pool.push(i);
+      for (var k = 0; k < count; k++){
+        var idx = Math.floor(Math.random() * pool.length);
+        s.push(pool.splice(idx, 1)[0]);
+      }
+      return s.sort(function(a, b){ return a - b; }).map(pad).join(' ');
+    };
+    $('mNums').value = pick(g.main.count, g.main.max) + ' + ' + pick(g.extra.count, g.extra.max);
+  };
+
+  $('mSave').onclick = function(){
+    if (state.busy) return;
+    var g = games.filter(function(x){ return x.key === $('mGame').value; })[0];
+    if (!g) return;
+    var parsed = parseNums($('mNums').value, g);
+    if (!parsed){ toast('号码格式不对，示例：01 03 05 10 22 + 03 09'); return; }
+    var btn = this;
+    state.busy = true;
+    btn.innerHTML = '<span class="spin"></span> 保存中';
+    api('/api/lottery/tickets', {
+      method: 'POST',
+      body: JSON.stringify({
+        game: g.key, main: parsed.main, extra: parsed.extra,
+        issue: $('mIssue').value.trim(),
+        betDate: $('mDate').value,
+        multiple: Number($('mMult').value) || 1,
+        isAppend: g.key === 'dlt' && $('mAppend').value === '1',
+        cost: Number($('mCost').value) || g.basePrice
+      })
+    }).then(function(){ state.busy = false; closeSheet(); toast('已记录'); load(); })
+      .catch(function(e){ state.busy = false; btn.innerHTML = '重试保存'; toast('保存失败：' + e.message); });
+  };
+}
+
+function parseNums(text, g){
+  var raw = String(text || '').replace(/[，,、]/g, ' ').replace(/\|/g, '+').replace(/；/g, '+').replace(/;/g, '+');
+  var parts = raw.split('+');
+  var mainStr = parts[0] || '';
+  var extraStr = parts.slice(1).join(' ') || '';
+  var toNums = function(s){ return (s.match(/\d+/g) || []).map(Number); };
+  var main = toNums(mainStr), extra = toNums(extraStr);
+
+  // 没写 "+" 时：按玩法总个数自动切分
+  if (!extra.length && main.length === g.main.count + g.extra.count){
+    extra = main.slice(g.main.count);
+    main = main.slice(0, g.main.count);
+  }
+  main.sort(function(a, b){ return a - b; });
+  extra.sort(function(a, b){ return a - b; });
+  if (main.length !== g.main.count || extra.length !== g.extra.count) return null;
+  if (main.some(function(n){ return n < 1 || n > g.main.max; })) return null;
+  if (extra.some(function(n){ return n < 1 || n > g.extra.max; })) return null;
+  if (new Set(main).size !== main.length || new Set(extra).size !== extra.length) return null;
+  return { main: main, extra: extra };
+}
+
+// ===== 同步开奖 & 对奖 =====
+
+$('btnCheck').onclick = function(){
+  var btn = this;
+  if (state.busy) return;
+  state.busy = true;
+  btn.innerHTML = '<span class="spin" style="border-color:rgba(0,0,0,.15);border-top-color:var(--primary)"></span> 同步中';
+  api('/api/lottery/check', { method: 'POST', body: JSON.stringify({ game: state.game || undefined }) })
+    .then(function(r){
+      state.busy = false;
+      btn.innerHTML = '🔄 同步开奖';
+      if (r.message) toast(r.wonCount ? ('🎉 中了 ' + r.wonCount + ' 注，共 ' + r.totalPrize + ' 元') : '已同步，这期没中', 3200);
+      else toast('开奖数据已更新，暂无可对奖的票', 2600);
+      load();
+    })
+    .catch(function(e){
+      state.busy = false;
+      btn.innerHTML = '🔄 同步开奖';
+      toast('同步失败：' + e.message);
+    });
+};
+
+// ===== 启动 =====
+
+loadMeta().then(function(){
+  return load();
+}).catch(function(e){
+  toast('初始化失败：' + e.message);
+});
+})();
+</script>
+</body>
+</html>

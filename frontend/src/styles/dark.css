@@ -1,0 +1,13 @@
+/* 猫猫侠 暗色模式变量 */
+:root.dark {
+  --bg: #0F0F1A;
+  --bg-card: #1A1A2E;
+  --bg-card-hover: #222240;
+  --bg-input: #16213E;
+  --border: #2A2A4A;
+  --text: #E8E8E8;
+  --text-dim: #8888AA;
+  --primary: #FF6B9D;
+  --primary-dark: #E85D8A;
+  --secondary: #4ECDC4;
+}

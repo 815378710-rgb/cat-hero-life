@@ -1,0 +1,353 @@
+{
+  "info": {
+    "_postman_id": "c8a88b0b-33cf-4f52-8f3f-411027000001",
+    "name": "WeChat-Hook 4.1.10.27",
+    "description": "WeChat-Hook HTTP API collection. Default target WeChat version: 4.1.10.27.\n\nBase URL: http://127.0.0.1:30001\n\nConvention:\n- Message / image / XML send APIs use { ret, retmsg }.\n- PB APIs (/send_xml, /send_file_msg, /get_a8key) use { ret, retmsg, data }.\n- QueryDB APIs use { status, desc, data } (raw database manager output).\n- Invalid JSON returns { ret: -1, msg: \"invalid json\" }.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:30001",
+      "type": "string"
+    },
+    {
+      "key": "wxid",
+      "value": "wxid_xxx",
+      "type": "string"
+    },
+    {
+      "key": "image_path",
+      "value": "C:\\\\path\\\\image.jpg",
+      "type": "string"
+    },
+    {
+      "key": "pic_src_path",
+      "value": "C:\\\\path\\\\source.dat",
+      "type": "string"
+    },
+    {
+      "key": "pic_dst_path",
+      "value": "C:\\\\path\\\\output.jpg",
+      "type": "string"
+    },
+    {
+      "key": "db_name",
+      "value": "MicroMsg.db",
+      "type": "string"
+    },
+    {
+      "key": "callback_url",
+      "value": "http://127.0.0.1:8080/callback",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "发送文本消息",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"wxidorgid\": \"{{wxid}}\",\n  \"msg\": \"hello\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/SendTextMsg",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "SendTextMsg"
+          ]
+        },
+        "description": "发送文本消息。\n\nRequest:\n{\n  \"wxidorgid\": \"wxid_xxx\",\n  \"msg\": \"hello\"\n}\n\nResponse:\n{ \"ret\": 0, \"retmsg\": \"success\" }"
+      }
+    },
+    {
+      "name": "发送本地图片消息",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"wxidorgid\": \"{{wxid}}\",\n  \"path\": \"{{image_path}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/SendImgMsg",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "SendImgMsg"
+          ]
+        },
+        "description": "发送本地图片消息。\n\nRequest:\n{\n  \"wxidorgid\": \"wxid_xxx\",\n  \"path\": \"C:\\\\path\\\\image.jpg\"\n}\n\nResponse:\n{ \"ret\": 0, \"retmsg\": \"success\" }"
+      }
+    },
+    {
+      "name": "转发 XML 消息",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"to_wxid\": \"{{wxid}}\",\n  \"content\": \"<msg>...</msg>\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/ForwardXMLMsg",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "ForwardXMLMsg"
+          ]
+        },
+        "description": "转发 XML 消息。\n\nRequest:\n{\n  \"to_wxid\": \"wxid_xxx\",\n  \"content\": \"<msg>...</msg>\"\n}\n\nResponse (success):\n{ \"ret\": 0, \"retmsg\": \"success\" }\n\nResponse (failure):\n{ \"ret\": 1, \"retmsg\": \"fail\" }"
+      }
+    },
+    {
+      "name": "解码图片(DAT 转 JPG)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"src_path\": \"{{pic_src_path}}\",\n  \"dst_path\": \"{{pic_dst_path}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/Decode_Pic",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "Decode_Pic"
+          ]
+        },
+        "description": "解码微信图片缓存文件 (DAT -> JPG)。\n\nRequest:\n{\n  \"src_path\": \"C:\\\\path\\\\source.dat\",\n  \"dst_path\": \"C:\\\\path\\\\output.jpg\"\n}\n\nResponse:\n{ \"ret\": 0, \"retmsg\": \"success\" }"
+      }
+    },
+    {
+      "name": "发送链接类 XML 消息(PB)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"wxid\": \"{{wxid}}\",\n  \"title\": \"标题\",\n  \"description\": \"描述\",\n  \"thumb_url\": \"https://example.com/thumb.jpg\",\n  \"url\": \"https://example.com\",\n  \"from_wxid\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/send_xml",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "send_xml"
+          ]
+        },
+        "description": "通过 PB sendappmsg 发送链接类 XML 消息。from_wxid 可省略,接口会自动获取当前登录 wxid。\n\nRequest:\n{\n  \"wxid\": \"wxid_xxx\",\n  \"title\": \"标题\",\n  \"description\": \"描述\",\n  \"thumb_url\": \"https://example.com/thumb.jpg\",\n  \"url\": \"https://example.com\",\n  \"from_wxid\": \"\"\n}\n\nResponse:\n{\n  \"ret\": 0,\n  \"retmsg\": \"success\",\n  \"data\": {\n    \"ret\": 0,\n    \"msgId\": 0,\n    \"newMsgId\": 0,\n    \"clientMsgId\": \"\",\n    \"rawSize\": 0,\n    \"rawHexPreview\": \"\"\n  }\n}"
+      }
+    },
+    {
+      "name": "发送文件消息(PB)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"wxid\": \"{{wxid}}\",\n  \"filepath\": \"C:\\\\path\\\\file.zip\",\n  \"stage\": \"send\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/send_file_msg",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "send_file_msg"
+          ]
+        },
+        "description": "发送文件消息 (PB / 内部结构)。stage 可选: construct / fill / scene / send,默认 send;前三个值用于调试构造阶段。\n\nRequest:\n{\n  \"wxid\": \"wxid_xxx\",\n  \"filepath\": \"C:\\\\path\\\\file.zip\",\n  \"stage\": \"send\"\n}\n\nResponse:\n{\n  \"ret\": 0,\n  \"retmsg\": \"success\",\n  \"data\": {\n    \"stage\": \"send\",\n    \"messageHandle\": \"0x0\",\n    \"fileSize\": 123\n  }\n}"
+      }
+    },
+    {
+      "name": "获取 A8Key(PB)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"url\": \"https://example.com\",\n  \"urlType\": 0,\n  \"scene\": 0\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/get_a8key",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "get_a8key"
+          ]
+        },
+        "description": "获取 A8Key (PB)。\n\nRequest:\n{\n  \"url\": \"https://example.com\",\n  \"urlType\": 0,\n  \"scene\": 0\n}\n\nResponse:\n{\n  \"ret\": 0,\n  \"retmsg\": \"success\",\n  \"data\": {\n    \"url\": \"https://example.com\",\n    \"urlType\": 0,\n    \"scene\": 0,\n    \"fullUrl\": \"\",\n    \"exportKey\": \"\",\n    \"a8Key\": \"\",\n    \"rawSize\": 0,\n    \"rawHexPreview\": \"\",\n    \"source\": \"weixin_task_callback\"\n  }\n}"
+      }
+    },
+    {
+      "name": "设置消息回调地址",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"url\": \"{{callback_url}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/set_callback",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "set_callback"
+          ]
+        },
+        "description": "设置消息回调地址。回调 URL 也可以通过 WeChat.exe 启动参数 CallBackURL= 设置。\n\nRequest:\n{\n  \"url\": \"http://127.0.0.1:8080/callback\"\n}\n\nResponse:\n{\n  \"ret\": 0,\n  \"retmsg\": \"success\",\n  \"callback\": \"http://127.0.0.1:8080/callback\"\n}\n\nCallback payload (POST 到 callback url):\n{\n  \"event_type\": 1001,\n  \"msgid\": 0,\n  \"type\": 1,\n  \"timestamp\": 0,\n  \"wxid\": \"wxid_xxx\",\n  \"sender\": \"wxid_xxx\",\n  \"roomid\": \"\",\n  \"content\": \"hello\"\n}"
+      }
+    },
+    {
+      "name": "获取当前账号资料",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{base_url}}/GetSelfProfile",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "GetSelfProfile"
+          ]
+        },
+        "description": "获取当前登录账号资料。请求体可为空。\n\nResponse fields:\n{ \"wxid\": \"\", \"alias\": \"\", \"nickname\": \"\", \"email\": \"\", \"qq\": 0, \"phone\": \"\", \"proiv\": \"\", \"area\": \"\", \"signinfo\": \"\" }\n\n注意: 字段 proiv 保留源码原拼写。"
+      }
+    },
+    {
+      "name": "执行 SQL 查询",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"optDbName\": \"{{db_name}}\",\n  \"SQL\": \"SELECT * FROM ChatRoom LIMIT 10\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/QueryDB/execute",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "QueryDB",
+            "execute"
+          ]
+        },
+        "description": "执行微信进程内 SQLite 查询。\n\nRequest:\n{\n  \"optDbName\": \"MicroMsg.db\",\n  \"SQL\": \"SELECT * FROM ChatRoom LIMIT 10\"\n}\n\nResponse (返回 DatabaseMgr 原始 JSON):\n{\n  \"status\": 0,\n  \"desc\": \"\",\n  \"data\": []\n}"
+      }
+    },
+    {
+      "name": "获取数据库列表",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{base_url}}/QueryDB/GetAllDBName",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "QueryDB",
+            "GetAllDBName"
+          ]
+        },
+        "description": "获取当前可访问的数据库列表。请求体可为空对象。\n\nResponse:\n[\n  { \"dbName\": \"MicroMsg.db\", \"dbHandle\": 123456789 }\n]"
+      }
+    },
+    {
+      "name": "查询登录与模块状态",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/QueryDB/status",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "QueryDB",
+            "status"
+          ]
+        },
+        "description": "查询登录状态和 Weixin.dll 模块地址。\n\nResponse:\n{ \"IsLogin\": 1, \"hWeixin\": 123456789 }"
+      }
+    }
+  ]
+}

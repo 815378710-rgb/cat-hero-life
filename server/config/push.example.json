@@ -1,0 +1,11 @@
+{
+  "_comment": "猫猫侠服务端推送配置。复制为 push.json 并填入你的 token。push.json 已被 .gitignore 忽略，不会提交。",
+  "_providers": {
+    "pushplus": "推送加【推荐】免费200条/天 ▶ https://www.pushplus.plus/ 登录→个人中心→复制token（需实名认证）",
+    "serverchan": "Server酱 免费5条/天（不够用，仅作备选）▶ https://sct.ftqq.com/ 微信扫码→SENDKEY",
+    "wecom": "企业微信机器人 webhook key（消息进企业微信而非个人微信服务通知）"
+  },
+  "provider": "pushplus",
+  "token": "在此填入pushplus的token（个人中心复制）",
+  "baseUrl": ""
+}

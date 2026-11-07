@@ -1,0 +1,35 @@
+# 依赖
+node_modules/
+frontend/node_modules/
+
+# 运行时数据（绝不入库）
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 密钥与本地配置
+server/config/push.json
+server/config/security.json
+.env
+.env.*
+
+# 临时与备份
+.openclaw/
+logs/
+*.log
+tmp/
+dist_old_*/
+
+# 系统
+.DS_Store
+Thumbs.db
+NUL
+
+# 微信相关大文件
+wechat-hook/WeChatSetup*.exe
+
+# 注：dist/ 作为「已验证发布产物」纳入版本库，
+# 目的是任意 commit 都能免构建直接部署（NAS 性能弱）。
+# 改动前端后必须执行 npm run build:frontend 并一并提交，否则产物与源码不一致。

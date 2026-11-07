@@ -1,0 +1,4 @@
+{
+  "_comment": "安全配置。仅部署过渡期使用。建议尽快设置 CAT_HERO_JWT_SECRET 和 CAT_HERO_ENCRYPTION_KEY 环境变量并删除此文件。",
+  "allowDefaultKeys": false
+}
