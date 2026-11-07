@@ -65,6 +65,20 @@ npm start
 - 数据全部落在宿主 `/volume1/projects/cat-hero-life/data`，容器内不存任何持久数据
 - 日志驱动沿用群晖默认（`db`），不要在 compose 里覆盖为 `json-file`
 
+### 访问口令（2026-11-07 启用）
+
+站点部署在公网，此前所有 `/api/*` 完全开放。现已加访问口令保护：
+
+- 首次启动自动生成随机口令，写入 `data/access_token.txt`（宿主挂载卷，重建容器不丢）
+- 也可通过环境变量 `CAT_HERO_ACCESS_TOKEN` 显式指定
+- 浏览器首次访问输入一次，写入 HttpOnly Cookie，保留 30 天
+- 白名单：`/api/system/health`、`/api/unlock`、微信/飞书回调；
+  可用 `CAT_HERO_PUBLIC_PATHS`（逗号分隔）追加
+- **应急关闭**：`CAT_HERO_ACCESS_GUARD=off`
+
+> ⚠️ `accessGuard` 必须挂在 `responseCache` 之前。响应缓存命中会直接 `res.json()` 返回，
+> 若 guard 排在后面，缓存命中即绕过鉴权（灰度验证实测发现过该漏洞）。
+
 ### 配置AI
 1. 打开设置页
 2. 填入DeepSeek API Key
