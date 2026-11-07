@@ -1,8 +1,9 @@
-// 访问口令保护
+// 访问口令保护（默认关闭）
 // 背景：middleware/auth.js（JWT）与 routes/auth.js（登录/注册）都写好了但从未挂载，
-// 导致全部 /api/* 对公网开放——任何人知道域名即可读取人生数据、调用 AI、下载备份。
-// 本模块采用单访问口令 + HttpOnly Cookie，不引入账号体系、不需要注册，
-// 也不要求改写前端已有的上百处 fetch / axios 调用。
+// 导致全部 /api/* 对公网开放。本模块采用单访问口令 + HttpOnly Cookie，
+// 不引入账号体系、不需要注册，也不要求改写前端已有的上百处 fetch / axios 调用。
+// 2026-11-07：按用户要求取消口令，改为默认放行；
+//             需要时设置 CAT_HERO_ACCESS_GUARD=on 即可一键恢复。
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -76,8 +77,9 @@ const PUBLIC_PREFIXES = [
 ];
 
 export function accessGuard(req, res, next) {
-  // 应急开关：CAT_HERO_ACCESS_GUARD=off 可临时关闭（排障用）
-  if (process.env.CAT_HERO_ACCESS_GUARD === 'off') return next();
+  // 默认关闭：不设环境变量即完全放行。
+  // 需保护时设置 CAT_HERO_ACCESS_GUARD=on；CAT_HERO_ACCESS_GUARD=off 为显式关闭。
+  if (process.env.CAT_HERO_ACCESS_GUARD !== 'on') return next();
 
   const p = req.path || req.originalUrl || '';
   if (!p.startsWith('/api/')) return next();          // 静态资源、SPA 页面不拦

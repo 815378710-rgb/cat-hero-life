@@ -48,7 +48,7 @@ router.put('/:id/progress', (req, res) => {
       let newExp = user.exp + expReward, newLevel = user.level;
       while (newExp >= getExpForLevel(newLevel + 1)) { newExp -= getExpForLevel(newLevel + 1); newLevel++; }
       db.prepare('UPDATE users SET level = ?, exp = ?, coins = coins + ?, total_exp = total_exp + ? WHERE id = ?').run(newLevel, newExp, coinReward, expReward, user.id);
-      return res.json({ success: true, completed: true, exp: expReward, coins: coinReward, message: '🎉 目标达成！太棒了喵！' });
+      return res.json({ success: true, completed: true, exp: expReward, coins: coinReward, message: '目标达成，这一步走完了。' });
     }
     res.json({ success: true, completed: false });
   } catch (e) { res.status(500).json({ error: e.message }); }

@@ -15,6 +15,7 @@ const routes = [
   { path: '/onboarding', name: 'onboarding', component: () => import('@/views/Onboarding.vue') },
   { path: '/plans', name: 'plans', component: () => import('@/views/Plans.vue') },
   { path: '/memory', name: 'memory', component: () => import('@/views/Memory.vue') },
+  { path: '/room', name: 'room', component: () => import('@/views/Room.vue') },
   { path: '/narrative', name: 'narrative', component: () => import('@/views/Narrative.vue') },
   { path: '/settings', name: 'settings', component: () => import('@/views/Settings.vue') },
   { path: '/heatmap', name: 'heatmap', component: () => import('@/views/Heatmap.vue') },

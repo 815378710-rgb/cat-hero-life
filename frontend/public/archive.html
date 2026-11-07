@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>表情档案馆 · 阿蓝</title>
+<style>
+:root{
+  --bg:#f2f7ff; --card:#ffffff; --ink:#33456b; --muted:#8b9ab6;
+  --line:#dbe6f8; --blue:#6f9bf0; --pink:#ffb7c5; --gold:#f6cf7d;
+  --shadow:0 8px 0 rgba(120,150,200,.13), 0 14px 28px rgba(120,150,200,.14);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(circle at 12% 10%,rgba(255,209,224,.5),transparent 34%),
+             radial-gradient(circle at 88% 22%,rgba(180,214,255,.5),transparent 32%);}
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:28px 20px 56px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.title{display:flex;align-items:center;gap:12px}
+.title .bubble{width:52px;height:52px;border-radius:18px;background:linear-gradient(135deg,#8fb8ff,#b9a4f5);
+  display:grid;place-items:center;font-size:28px;transform:rotate(-6deg);
+  box-shadow:0 5px 0 rgba(110,140,200,.22);border:3px solid #fff}
+h1{margin:0;font-size:24px;letter-spacing:.5px}
+.sub{margin:5px 0 0;font-size:12px;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:3px solid #fff;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:600;
+  color:var(--ink);background:var(--card);cursor:pointer;box-shadow:0 4px 0 rgba(120,150,200,.2);
+  transition:transform .15s,box-shadow .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{transform:translateY(-2px) rotate(-1deg);box-shadow:0 6px 0 rgba(120,150,200,.2)}
+.btn:active{transform:translateY(1px);box-shadow:0 2px 0 rgba(120,150,200,.2)}
+.btn.primary{background:linear-gradient(135deg,#ffb7c5,#b9a4f5);color:#fff}
+.meta{margin:0 0 18px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#8ed0b4}
+.dot.demo{background:var(--gold)}
+
+.masonry{columns:4;column-gap:16px}
+@media(max-width:1000px){.masonry{columns:3}}
+@media(max-width:700px){.masonry{columns:2}}
+@media(max-width:420px){.masonry{columns:1}}
+.card{break-inside:avoid;margin:0 0 16px;background:var(--card);border:3px solid #fff;border-radius:20px;
+  padding:9px;box-shadow:var(--shadow);cursor:zoom-in;position:relative;
+  transition:transform .18s,box-shadow .18s;}
+.card:nth-child(odd){transform:rotate(-1.1deg)}
+.card:nth-child(even){transform:rotate(1.1deg)}
+.card:hover{transform:rotate(0) scale(1.035);z-index:2;box-shadow:0 10px 0 rgba(120,150,200,.14),0 20px 36px rgba(110,140,200,.22)}
+.card img{display:block;width:100%;height:auto;border-radius:13px;background:#eaf1ff}
+.card .cap{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 4px 3px;
+  font-size:12px;color:var(--ink);font-weight:600}
+.card .tag{font-size:10px;color:var(--muted);background:#f0f5ff;border-radius:999px;padding:3px 8px;font-weight:500}
+.empty{padding:40px;text-align:center;color:var(--muted);font-size:13px;background:#fff;border-radius:20px;box-shadow:var(--shadow)}
+
+/* 灯箱 */
+.lightbox{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;
+  background:rgba(38,54,90,.72);backdrop-filter:blur(6px);padding:20px}
+.lightbox.on{display:flex}
+.lb-inner{position:relative;max-width:min(92vw,900px);max-height:88vh;display:flex;flex-direction:column;align-items:center;gap:14px}
+.lb-inner img{max-width:100%;max-height:70vh;object-fit:contain;border-radius:18px;
+  border:5px solid #fff;box-shadow:0 18px 50px rgba(0,0,0,.28);background:#fff}
+.lb-bar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.lb-info{color:#fff;font-size:13px;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,.3)}
+.nav{position:absolute;top:42%;transform:translateY(-50%);width:44px;height:44px;border:3px solid #fff;
+  border-radius:50%;background:rgba(255,255,255,.9);color:var(--ink);font-size:20px;cursor:pointer;
+  display:grid;place-items:center;box-shadow:0 5px 16px rgba(0,0,0,.18)}
+.nav.prev{left:-60px}.nav.next{right:-60px}
+@media(max-width:760px){.nav.prev{left:0}.nav.next{right:0}.nav{top:auto;bottom:-58px;transform:none}}
+.close{position:absolute;top:-54px;right:0;color:#fff;font-size:13px;cursor:pointer;opacity:.85}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:12px;
+  opacity:0;pointer-events:none;transition:all .25s;z-index:60}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+footer{margin-top:28px;padding:18px;border-radius:18px;background:rgba(255,255,255,.7);
+  font-size:12px;line-height:1.8;color:var(--muted)}
+footer b{color:var(--ink)}
+footer code{background:#eaf1ff;padding:2px 6px;border-radius:5px;color:#4a6ea8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title">
+      <div class="bubble">🐋</div>
+      <div>
+        <h1>表情档案馆</h1>
+        <p class="sub">阿蓝的贴纸墙 · 原图不加水印、不改格式、不降分辨率</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="backBtn">← 回主页</button>
+      <a class="btn primary" id="submitBtn" target="_blank" rel="noopener">✉️ 投稿表情包</a>
+    </div>
+  </header>
+
+  <p class="meta"><span id="statusDot" class="dot"></span><span id="statusText">加载中…</span></p>
+  <div class="masonry" id="grid"></div>
+
+  <footer>
+    <b>怎么换成你自己的表情包</b><br>
+    把 PNG / JPG / GIF / WebP / APNG 放进 <code>dist/archive/media/</code>，
+    然后在 <code>dist/archive/media.json</code> 的 <code>items</code> 里登记
+    <code>{ "file": "media/xxx.png", "title": "标题", "tag": "标签" }</code>。
+    动图（GIF / WebP / APNG）会自动播放。留空时本页展示内置原创示例贴纸，
+    <b>不预置任何第三方表情包</b>。投稿方式：把图片放进仓库 media/ 后发 Pull Request，或直接提 Issue 附图片。
+  </footer>
+</div>
+
+<div class="lightbox" id="lb">
+  <div class="lb-inner">
+    <div class="close" id="lbClose">✕ 关闭 (Esc)</div>
+    <button class="nav prev" id="lbPrev" aria-label="上一张">‹</button>
+    <img id="lbImg" alt="大图预览">
+    <button class="nav next" id="lbNext" aria-label="下一张">›</button>
+    <div class="lb-info" id="lbInfo"></div>
+    <div class="lb-bar">
+      <button class="btn" id="lbCopy">📋 复制图片</button>
+      <a class="btn" id="lbDownload" download>⬇️ 下载原图</a>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- 示例贴纸（原创 SVG，无第三方素材） ---------------- */
+const DEMO = [
+  { text:'可以啊', tag:'得意', bg:'#ffe9b8', mood:'happy' },
+  { text:'哼，随便你', tag:'嘴硬', bg:'#dbe8ff', mood:'tsun' },
+  { text:'白饭呢？', tag:'贪吃', bg:'#ffe0e8', mood:'rice' },
+  { text:'困……', tag:'犯困', bg:'#e3dcff', mood:'sleep' },
+  { text:'回来啦', tag:'想念', bg:'#d9f3e6', mood:'worry' },
+  { text:'本来就这样', tag:'小骄傲', bg:'#ffeed3', mood:'proud' },
+  { text:'别熬了', tag:'关心', bg:'#dfe9ff', mood:'sleep' },
+  { text:'我在呢', tag:'陪着', bg:'#ffe4ee', mood:'happy' },
+];
+
+function stickerSvg(d) {
+  const eyes = d.mood === 'sleep'
+    ? '<path d="M118 104 q10 9 20 0 M182 104 q10 9 20 0" stroke="#2f4b8f" stroke-width="4" fill="none" stroke-linecap="round"/>'
+    : d.mood === 'tsun' || d.mood === 'proud'
+      ? '<path d="M116 100 l22 5 M204 100 l-22 5" stroke="#2f4b8f" stroke-width="4" stroke-linecap="round"/>'
+        + '<circle cx="128" cy="110" r="5" fill="#2f4b8f"/><circle cx="192" cy="110" r="5" fill="#2f4b8f"/>'
+      : '<ellipse cx="128" cy="106" rx="6" ry="8" fill="#2f4b8f"/><ellipse cx="192" cy="106" rx="6" ry="8" fill="#2f4b8f"/>'
+        + '<circle cx="126" cy="103" r="2" fill="#fff"/><circle cx="190" cy="103" r="2" fill="#fff"/>';
+  const mouth = d.mood === 'happy' ? '<path d="M146 130 q14 14 28 0" stroke="#2f4b8f" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+    : d.mood === 'sleep' ? '<ellipse cx="160" cy="132" rx="7" ry="5" fill="#2f4b8f" opacity=".75"/>'
+    : '<path d="M150 132 q10 -6 20 0" stroke="#2f4b8f" stroke-width="3" fill="none" stroke-linecap="round"/>';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="250" viewBox="0 0 320 250">
+  <rect width="320" height="250" rx="26" fill="${d.bg}"/>
+  <circle cx="42" cy="40" r="9" fill="#fff" opacity=".65"/><circle cx="282" cy="52" r="6" fill="#fff" opacity=".6"/>
+  <path d="M74 150 Q36 122 28 148 Q40 164 52 160 Q38 178 52 186 Q70 180 80 168Z" fill="#6f9bf0" stroke="#3c68bd" stroke-width="2"/>
+  <path d="M112 186 Q160 204 208 186 L210 206 Q160 220 110 206Z" fill="#fff" stroke="#cfdcf2" stroke-width="2"/>
+  <path d="M104 96 Q96 56 160 52 Q224 56 216 96 L212 116 Q160 128 108 116Z" fill="#2f4b8f"/>
+  <circle cx="160" cy="112" r="49" fill="#fff3e6" stroke="#e8d5c4" stroke-width="2"/>
+  <path d="M110 92 Q124 62 160 64 Q198 62 210 92 Q186 80 168 88 Q150 76 132 90Z" fill="#4d7bd8"/>
+  <path d="M160 64 Q168 42 182 46" stroke="#2f4b8f" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  ${eyes}${mouth}
+  <ellipse cx="106" cy="124" rx="8" ry="5" fill="#ffb7c5" opacity=".65"/>
+  <ellipse cx="214" cy="124" rx="8" ry="5" fill="#ffb7c5" opacity=".65"/>
+  <text x="160" y="238" text-anchor="middle" font-size="22" font-weight="700" fill="#2f4b8f"
+    font-family="PingFang SC, Microsoft YaHei, sans-serif">${d.text}</text>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+/* ---------------- 数据加载 ---------------- */
+let items = [], current = 0, isDemo = false;
+const $ = id => document.getElementById(id);
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+async function load() {
+  try {
+    const r = await fetch('/archive/media.json', { cache: 'no-cache' });
+    const j = r.ok ? await r.json() : null;
+    const list = j && Array.isArray(j.items) ? j.items.filter(x => x && x.file) : [];
+    if (list.length) {
+      items = list.map(x => ({ src: '/archive/' + x.file, title: x.title || '', tag: x.tag || '' }));
+      isDemo = false;
+    } else {
+      items = DEMO.map(d => ({ src: stickerSvg(d), title: d.text, tag: d.tag }));
+      isDemo = true;
+    }
+  } catch {
+    items = DEMO.map(d => ({ src: stickerSvg(d), title: d.text, tag: d.tag }));
+    isDemo = true;
+  }
+
+  $('statusDot').className = 'dot' + (isDemo ? ' demo' : '');
+  $('statusText').textContent = isDemo
+    ? `内置原创示例贴纸 ${items.length} 张 · 替换 media.json 即可换成你的表情包`
+    : `已收录 ${items.length} 张 · 原图展示，支持 GIF / WebP / APNG 动图`;
+
+  const grid = $('grid');
+  grid.innerHTML = '';
+  items.forEach((it, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<img loading="lazy" src="${it.src}" alt="${escapeHtml(it.title)}">
+      <div class="cap"><span>${escapeHtml(it.title)}</span><span class="tag">${escapeHtml(it.tag)}</span></div>`;
+    card.addEventListener('click', () => open(i));
+    grid.appendChild(card);
+  });
+}
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+
+/* ---------------- 灯箱 ---------------- */
+function open(i) {
+  current = i; render(); $('lb').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function close() { $('lb').classList.remove('on'); document.body.style.overflow = ''; }
+function step(d) { if (!items.length) return; current = (current + d + items.length) % items.length; render(); }
+function render() {
+  const it = items[current];
+  $('lbImg').src = it.src;
+  $('lbInfo').textContent = `${it.title || '未命名'} · ${current + 1} / ${items.length}`;
+  const dl = $('lbDownload');
+  dl.href = it.src;
+  dl.setAttribute('download', (it.title || `sticker-${current + 1}`) + (it.src.startsWith('data:') ? '.svg' : ''));
+}
+
+$('lbClose').onclick = close;
+$('lbPrev').onclick = () => step(-1);
+$('lbNext').onclick = () => step(1);
+$('lb').addEventListener('click', e => { if (e.target === $('lb')) close() });
+$('backBtn').onclick = () => { location.href = '/' };
+$('submitBtn').href = 'https://github.com/815378710-rgb/cat-hero-life/issues/new';
+
+$('lbCopy').onclick = async () => {
+  try {
+    const blob = await (await fetch(items[current].src)).blob();
+    if (!navigator.clipboard || !window.ClipboardItem || !/image\/(png|gif|webp|apng)/.test(blob.type)) {
+      toast('浏览器不支持直接复制该格式，请用「下载原图」');
+      return;
+    }
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    toast('已复制，去粘贴吧');
+  } catch (e) { toast('复制失败：' + (e.message || '未知原因')) }
+};
+
+document.addEventListener('keydown', e => {
+  if (!$('lb').classList.contains('on')) return;
+  if (e.key === 'Escape') close();
+  else if (e.key === 'ArrowLeft') step(-1);
+  else if (e.key === 'ArrowRight') step(1);
+});
+
+load();
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import zlib from 'node:zlib';
 import { accessGuard, unlockHandler } from './middleware/access-guard.js';
+import { getPersona } from './services/persona.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { initDb, getDb, createDbWrapper, getDbAsync, saveDbImmediate } from './db/init.js';
@@ -278,6 +279,16 @@ async function start() {
     sweep();
     next();
   });
+  // 独立页面路由必须排在 express.static 之前：
+  // dist/archive/ 是目录，静态中间件会对 /archive 先发 301 目录重定向，
+  // 导致 app.get('/archive') 永远匹配不到。
+  app.get('/lottery', (_req, res) => {
+    res.sendFile(join(__dirname, '..', 'dist', 'lottery.html'));
+  });
+  app.get('/archive', (_req, res) => {
+    res.sendFile(join(__dirname, '..', 'dist', 'archive.html'));
+  });
+
   // 静态资源缓存策略
   // 背景：隧道跨境回源到洛杉矶，若每次都要重新拉 240KB 的 index.js，首屏会非常慢。
   // 构建产物文件名自带内容 hash，可安全长缓存；HTML 必须 no-cache 才能拿到新 hash。
@@ -303,10 +314,6 @@ async function start() {
   // 彩票照片等上传的图片
   app.use('/uploads', express.static(join(dataDir, 'uploads')));
 
-  // 彩票板块独立页面（/lottery 直达）
-  app.get('/lottery', (_req, res) => {
-    res.sendFile(join(__dirname, '..', 'dist', 'lottery.html'));
-  });
   
   // Make db wrapper available
   app.use((req, res, next) => {
@@ -373,6 +380,11 @@ async function start() {
   });
   
   // API Routes
+  // 当前人格（前端导航/房间页据此显示，切换 CAT_HERO_PERSONA 后自动同步）
+  app.get('/api/persona', (_req, res) => {
+    const p = getPersona();
+    res.json({ id: p.id, name: p.name, emoji: p.emoji, tagline: p.tagline });
+  });
   app.use('/api/user', userRoutes);
   app.use('/api/tasks', taskRoutes);
   app.use('/api/checkins', checkinRoutes);

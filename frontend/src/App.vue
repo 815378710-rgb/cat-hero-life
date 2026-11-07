@@ -40,7 +40,9 @@
       <nav class="sidebar" :class="{ open: sidebarOpen }">
         <div class="nav-section">
           <NavItem page="dashboard" icon="fas fa-home" label="主页" @click="navigate" />
-          <NavItem page="chat" icon="fas fa-comments" label="猫猫侠" @click="navigate" />
+          <NavItem page="chat" icon="fas fa-comments" :label="personaLabel" @click="navigate" />
+          <NavItem page="room" icon="fas fa-fish" label="她的房间" @click="navigate" />
+          <NavItem page="archive" icon="fas fa-images" label="表情档案馆" @click="navigate" />
           <NavItem page="tasks" icon="fas fa-tasks" label="任务中心" @click="navigate" />
           <NavItem page="checkin" icon="fas fa-check-circle" label="打卡" @click="navigate" />
           <NavItem page="habits" icon="fas fa-repeat" label="习惯" @click="navigate" />
@@ -159,6 +161,12 @@ const moodEmoji = computed(() => {
 
 // Navigation
 const navigate = (page: string) => {
+  // 档案馆是独立 HTML（不走 Vue 路由）
+  if (page === 'archive') {
+    location.href = '/archive'
+    sidebarOpen.value = false
+    return
+  }
   router.push({ name: page })
   sidebarOpen.value = false
 }
@@ -186,8 +194,17 @@ const showToast = (message: string, type: string = 'info') => {
   setTimeout(() => toast.remove(), 3000)
 }
 
-// Init
+// 当前人格名（切换 CAT_HERO_PERSONA 后导航自动同步）
+const personaLabel = ref('聊天')
 onMounted(async () => {
+  try {
+    const r = await fetch('/api/persona')
+    if (r.ok) {
+      const p = await r.json()
+      personaLabel.value = `${p.emoji || ''} ${p.name || '聊天'}`.trim()
+    }
+  } catch { /* 接口不可用时保持中性标签 */ }
+
   // Load theme: localStorage > system preference
   const savedTheme = localStorage.getItem('theme')
   if (savedTheme) {

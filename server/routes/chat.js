@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
+import { personaTpl, getPersona } from '../services/persona.js';
 import { chatWithLLM, buildSystemPrompt, analyzeMessage, isAiEnabled, getAiConfig, getRawAiConfig, llmAnalyzeIntent, llmAnalyzeEmotion, PROVIDERS } from '../services/ai-engine.js';
 import { getUnlockedFeatures, isFeatureUnlocked, getNextUnlock } from '../services/growth.js';
 import { getAiMood, getMoodPrefix } from '../services/life-engine.js';
@@ -518,7 +519,7 @@ router.post('/stream', async (req, res) => {
       const status = error?.response?.status;
       const detail = error?.response?.data?.error?.message || error?.message || '';
       console.error('[chat] Stream error:', status, detail);
-      let msg = '喵，AI 服务这会儿没响应，稍后再试一次~';
+      let msg = 'AI 这会儿没搭理我，稍等一下再试？';
       if (status === 401 || status === 403) msg = 'AI 服务的密钥失效了，请在设置页重新填写 🔑';
       else if (status === 402) msg = 'AI 服务额度不足啦，充值后再来找我 💳';
       else if (status === 429) msg = '说得有点太快了，稍等几秒再试~';
@@ -660,7 +661,7 @@ function generateRuleBasedResponse(message, user, profile, context, analysis, db
   switch (analysis.intent) {
     case 'greeting': {
       const extra = context.streak > 0 ? `连续签到${context.streak}天了！` : '';
-      return { text: `${prefix}${name}好喵~ ${extra}今天也要元气满满哦~ ⭐`, metadata: { intent: 'greeting', importance: 3 } };
+      return { text: personaTpl('greeting', { name }) + (extra ? ` ${extra}` : ''), metadata: { intent: 'greeting', importance: 3 } };
     }
     case 'task': {
       if (context.todayTasks > 0) return { text: `${prefix}${name}，还有${context.todayTasks}个任务等着你~ 💪 先从最简单的开始吧！`, actions: ['show_tasks'], metadata: { intent: 'task', importance: 4 } };
@@ -686,7 +687,7 @@ function generateRuleBasedResponse(message, user, profile, context, analysis, db
       return { text: `${prefix}${name}的人生档案已建立~ 📋 去设置页面查看修改~`, actions: ['show_profile'], metadata: { importance: 4 } };
     }
     case 'help': {
-      return { text: `${prefix}我是猫猫侠，你的人生AI管家~ 🐱\n\n我能帮你：任务管理、习惯追踪、人生规划、情绪支持、数据分析...\n\n说什么都可以~`, metadata: { importance: 3 } };
+      return { text: `我是${getPersona().name}，陪你过日子、顺便管管人生的。\n\n任务、习惯、规划、情绪、数据都能聊。\n\n说什么都行。`, metadata: { importance: 3 } };
     }
     case 'life_advice': {
       const weakest = ['health','finance','learning','career','social','mental','habits','creativity'].map(d => ({ dim: d, val: user[`stat_${d}`] })).sort((a, b) => a.val - b.val)[0];

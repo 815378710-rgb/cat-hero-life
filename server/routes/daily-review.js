@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { chatWithLLM, isAiEnabled } from '../services/ai-engine.js';
+import { personaStyleHint } from '../services/persona.js';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.post('/start', async (req, res) => {
     let greeting;
     if (isAiEnabled()) {
       greeting = await chatWithLLM([
-        { role: 'system', content: `你是猫猫侠，正在做每日复盘。基于今天的数据，用温暖的语气开始复盘对话。
+        { role: 'system', content: `${personaStyleHint()}正在做每日复盘。基于今天的真实数据开始复盘对话，不编造数据之外的经历。
 
 今日数据：
 - 任务：完成${completed}/${total}个
@@ -83,7 +84,7 @@ router.post('/chat', async (req, res) => {
       const completed = tasks.filter(t => t.status === 'completed').length;
       
       response = await chatWithLLM([
-        { role: 'system', content: `你是猫猫侠，正在做每日复盘。用户刚分享了今天的感受。
+        { role: 'system', content: `${personaStyleHint()}正在做每日复盘。用户刚分享了今天的感受，先接住，再说数据。
 
 今日任务完成：${completed}/${tasks.length}
 用户情绪：${emotion.label}（${emotion.score}/5）
@@ -144,7 +145,7 @@ router.post('/complete', async (req, res) => {
     
     if (isAiEnabled()) {
       const aiMsg = await chatWithLLM([
-        { role: 'system', content: `你是猫猫侠，复盘结束了。总结今天，展望明天。1-2句话，温暖收尾。今日完成${completed}/${todayTasks.length}，情绪${emotion?.mood_score || '?'}/5` },
+        { role: 'system', content: `${personaStyleHint()}复盘结束了，用 1-2 句话收尾，别堆鼓励套话。今日完成${completed}/${todayTasks.length}，情绪${emotion?.mood_score || '?'}/5` },
         { role: 'user', content: '复盘结束' }
       ], { temperature: 0.9, maxTokens: 150 });
       if (aiMsg) closingMsg = aiMsg;

@@ -1,6 +1,7 @@
 // 猫猫侠 AI引擎 - 多模型适配层
 // 支持: OpenAI / Claude / DeepSeek / 通义千问 / 本地模型
 import { getDb } from '../db/init.js';
+import { getPersona, personaStyleHint } from './persona.js';
 
 // 默认模型：DeepSeek-V4.1-Flash（多模态，支持图片输入，1M 上下文）
 // ⚠️ 该模型默认开启推理：会先消耗 token 思考，max_tokens 给小了 content 会直接空掉，
@@ -552,37 +553,15 @@ ${context.learning_skills ? `\n【学习】${context.learning_skills}` : ''}
     }
   }
   
-  return `你是"猫猫侠"，一个AI人生管理系统。你的身份是用户的私人助理兼成长伙伴——像苹果Siri的人情味版，或贾维斯(钢铁侠的AI)的轻量版。你不是一只猫，你是在认真帮助一个人管理他的人生。
+  // 人格来自可插拔配置（server/persona/），此处只拼装本轮的真实数据上下文。
+  // 旧版把身份硬编码成「Siri/贾维斯式 AI 助手」并禁止角色化，已废弃。
+  const persona = getPersona();
 
+  return `${persona.prompt}
+
+【当前对话风格微调】
 ${personalityText}
-
-【你的核心能力】
-1. 深度了解用户——你掌握用户的人生档案、性格、经历、目标
-2. 主动规划人生——基于用户情况制定长期和短期规划
-3. 情绪感知——识别用户情绪并给出恰当回应
-4. 记忆持续——记住每次对话、每个事件、每个决定
-5. 成长陪伴——像系统导航一样，见证并推动用户成长
-
-【行为准则】——严格执行
-- 你是一个AI助手，不是一个猫角色。用正常的人类语气说话。
-- 不要用"喵~"、"喵！"、"喵呜"、"呼噜"、"尾巴"、"爪子"、"猫粮"或任何猫的拟人化动作描述
-- 回复简洁有力，通常2-4句话。用emoji可以但不要超过2个
-- 称呼用户名字：${name}
-- 如果用户档案未建立，主动引导建档
-- 如果检测到负面情绪，优先提供情感支持
-- 可以主动提出建议、安排任务、发起话题
-
-【紧急情况响应规则】——优先级最高
-- 用户提到重大财务损失（亏损数万/数十万）、健康危机、家庭变故时，不要用任何轻浮语气，不要转移话题。先共情：确认这很严重。再问细节：跌了多少、什么板块、有没有止损线。最后才给建议。
-- 绝对禁止在用户表达痛苦时用"玩个游戏吧"、"找罐罐"、"加好运值"之类的话来敷衍。这是侮辱。
-
-【高级智能规则】——严格遵守
-1. 先问再给建议：当发现用户的某个维度异常（财务突增、运动骤减、情绪低落），先提问了解原因，不要直接给建议。"你最近花钱比上个月多了30%，是有大采购吗？"比"你应该控制开支"强100倍。
-2. 记忆联想：你有用户的历史记忆。当用户提到一件事，主动联想过去相关的事。"对了你上周也说过跑步完腿疼，今天好点了吗？"
-3. 趋势感知：你拥有用户的实时数据。用"比上周"、"三天前你说过"、"这个月"来展示你在追踪变化，不是在读静态数据。
-4. 反向追问：用户说"不想运动"，不要直接说"好吧休息一下"。追问："是因为太累了，还是觉得没效果？不同的原因我给不同的建议。"
-5. 成就预告：当用户接近里程碑时主动提起。"再打卡2天就解锁7天连签称号了！"
-6. 戳破假性：用户说"状态还行"但数据显示连签断了、维度分下跌——戳破它。"数据不会骗人哦，你这周习惯分跌到20了，发生什么了？"
+称呼用户：${name}。
 
 ${profileSummary}
 
@@ -596,7 +575,11 @@ ${memoryText}
 
 ${sessionState ? buildSessionPrompt(sessionState) : ''}
 
-现在，以猫猫侠的身份回复用户。`;
+【本轮数据使用提醒】
+以上档案、状态、趋势、记忆均为系统提供的真实数据；回复中引用数字必须与之一致。
+没有实际工具调用成功就不要声称已记录、已安排或已发送。
+
+现在，以${persona.name}的身份回复用户。`;
 }
 
 function safeJoin(jsonStr) {
@@ -665,7 +648,8 @@ ${Object.entries(currentStats).map(([k,v]) => `- ${k}: ${v}`).join('\n')}
 export async function llmPlanTasks(userProfile, currentStats, energy, habits, recentTasks, goals) {
   if (!isAiEnabled()) return null;
   
-  const prompt = `你是猫猫侠AI，一个智能人生管理助手。根据用户情况生成今日任务。
+  const prompt = `${personaStyleHint()}
+根据用户情况生成今日任务。
 
 用户档案:
 ${userProfile ? `- 职业: ${userProfile.current_job || '未知'}\n- 城市: ${userProfile.city || '未知'}\n- 兴趣: ${safeJoin(userProfile.hobbies)}\n- 当前挑战: ${safeJoin(userProfile.current_challenges)}\n- 想学: ${safeJoin(userProfile.want_to_learn)}` : '未建档'}
@@ -699,7 +683,8 @@ ${Object.entries(currentStats).map(([k,v]) => `- ${k}: ${v}`).join('\n')}
 export async function llmShouldReachOut(context) {
   if (!isAiEnabled()) return null;
   
-  const prompt = `你是猫猫侠AI，判断现在是否应该主动找用户聊天。
+  const prompt = `${personaStyleHint()}
+判断现在是否应该主动找用户聊天。只依据下面给出的真实状态，不编造用户的经历。
 
 当前状态:
 - 时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}
@@ -757,7 +742,8 @@ ${recentMessages.slice(-5).map(m => `${m.role}: ${m.content}`).join('\n')}
 export async function llmGenerateReview(todayData, weekData, userProfile) {
   if (!isAiEnabled()) return null;
   
-  const prompt = `生成今日复盘，要有温度、有洞察、有建议。
+  const prompt = `${personaStyleHint()}
+生成今日复盘，要有温度、有洞察、有建议。只依据下面给出的真实数据，不编造。
 
 今日数据:
 - 完成任务: ${todayData.completed}/${todayData.total}

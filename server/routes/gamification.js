@@ -53,7 +53,7 @@ router.post('/check-achievements', (req, res) => {
         newlyUnlocked.push(ach);
       }
     }
-    res.json({ success: true, new_achievements: newlyUnlocked, message: newlyUnlocked.length > 0 ? `🎉 解锁了${newlyUnlocked.length}个新成就喵！` : '暂时没有新成就解锁，继续加油喵~' });
+    res.json({ success: true, new_achievements: newlyUnlocked, message: newlyUnlocked.length > 0 ? `解锁了${newlyUnlocked.length}个新成就` : '暂时没有新成就，继续走' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

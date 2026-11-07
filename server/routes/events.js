@@ -44,7 +44,7 @@ router.post('/:id/resolve', (req, res) => {
       db.prepare('UPDATE users SET level = ?, exp = ?, coins = coins + ?, total_exp = total_exp + ? WHERE id = ?').run(newLevel, newExp, coinGain, expGain, user.id);
     }
     
-    res.json({ success: true, choice: choice?.text, rewards: { exp: expGain, coins: coinGain }, effects: statEffects, message: `做出了选择喵！获得 ${expGain}经验 ${coinGain}金币 🎉` });
+    res.json({ success: true, choice: choice?.text, rewards: { exp: expGain, coins: coinGain }, effects: statEffects, message: `记下了。获得 ${expGain}经验 ${coinGain}金币` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

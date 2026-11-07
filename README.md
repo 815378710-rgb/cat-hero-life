@@ -79,6 +79,26 @@ npm start
 > ⚠️ `accessGuard` 必须挂在 `responseCache` 之前。响应缓存命中会直接 `res.json()` 返回，
 > 若 guard 排在后面，缓存命中即绕过鉴权（灰度验证实测发现过该漏洞）。
 
+### 角色化体验（2026-11-07）
+
+参考社区项目 `whyever77/dafeiyu-astrbot`（MIT）与 `EDMOK/blue-fish-archive`，
+分三阶段把工具型系统改造成有角色的陪伴体验。
+
+| 阶段 | 内容 | 入口 |
+|---|---|---|
+| 1 · 换灵魂 | 可插拔人格（`server/persona/`），默认「阿蓝 🐋」，`CAT_HERO_PERSONA=cat-hero` 可切回猫猫侠 | 全站 AI 输出 |
+| 2 · 她的房间 | 昼夜窗景 + 原创蓝鲸娘状态动画 + 真实 `ai_memory` 记忆星海（纯 SVG，无外部立绘） | `/room` |
+| 3 · 档案馆 | 卡通贴纸风瀑布流、大图翻页、复制/下载原图、支持 GIF/WebP/APNG | `/archive` |
+
+人格的三条硬约束：**有脾气但不索取关注**、**不编造经历**（没调工具不说已安排）、
+**记忆有边界**（"以前说过但找不到" ≠ "从没发生过"）。详见 `server/persona/README.md`。
+
+档案馆默认展示 8 张**内置原创 SVG 示例贴纸**，不预置任何第三方表情包。
+换成自己的图片：放入 `dist/archive/media/`，在 `dist/archive/media.json` 的 `items` 里登记。
+
+> 版权：大肥鱼是 DeepSeek 蓝鲸的社区二创（非官方）。本项目人格文本为原创改写并注明出处，
+> 未使用上游立绘、头像、精灵图或音色素材。角色名「阿蓝」为本项目原创。
+
 ### 配置AI
 1. 打开设置页
 2. 填入DeepSeek API Key
