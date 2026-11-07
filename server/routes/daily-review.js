@@ -43,7 +43,7 @@ router.post('/start', async (req, res) => {
     }
     
     if (!greeting) {
-      greeting = `🐱 晚上好~ 来做今日复盘吧！\n\n今天完成了${completed}/${total}个任务，打卡${checkins.length}次。${completed === total && total > 0 ? '全部完成，太棒了！' : '还有进步空间~'}\n\n今天感觉怎么样？有什么想说的吗？`;
+      greeting = `来做个今日复盘吧。\n\n今天完成了${completed}/${total}个任务，打卡${checkins.length}次。${completed === total && total > 0 ? '全清了。' : '剩下的不急。'}\n\n今天感觉怎么样？`;
     }
     
     // 保存复盘对话

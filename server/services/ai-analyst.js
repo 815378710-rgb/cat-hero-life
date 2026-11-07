@@ -1,5 +1,6 @@
 // 猫猫侠 AI数据分析 - 基于真实用户数据的智能分析
 import { chatWithLLM, isAiEnabled } from './ai-engine.js';
+import { personaStyleHint } from './persona.js';
 
 /**
  * 收集用户数据并构建分析prompt，调用LLM生成分析报告
@@ -62,7 +63,7 @@ export async function generateAnalysis(db) {
     ? chatHistory.map(c => `- [${c.role}] ${c.content.slice(0, 80)}`).join('\n')
     : '（无聊天记录）';
 
-  const prompt = `你是猫猫侠AI分析师。请根据以下用户真实数据生成一份简短的分析报告。
+  const prompt = `${personaStyleHint()} 请根据以下用户真实数据生成一份简短的分析报告。
 
 【用户数据】
 等级: Lv.${user.level} | 连续签到: ${user.consecutive_sign_days}天
@@ -182,7 +183,7 @@ export async function runDailyAnalysis() {
 
   try {
     const analysis = await generateAnalysis(db);
-    const message = `📊 猫猫侠每日分析报告\n\n${analysis.analysis}\n\n💡 洞察：\n${analysis.insights.map((o, i) => `${i + 1}. ${o}`).join('\n')}\n\n📋 建议：\n${analysis.recommendations.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
+    const message = `📊 每日分析报告\n\n${analysis.analysis}\n\n💡 洞察：\n${analysis.insights.map((o, i) => `${i + 1}. ${o}`).join('\n')}\n\n📋 建议：\n${analysis.recommendations.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
 
     try {
       await fetch('http://127.0.0.1:3000/api/wechat-bot/send', {

@@ -2,7 +2,7 @@
   <div v-if="visible" class="gate-mask" role="dialog" aria-modal="true">
     <div class="gate-card">
       <div class="gate-emoji">🐱</div>
-      <h2>猫猫侠</h2>
+      <h2>人生管理系统</h2>
       <p class="gate-hint">请输入访问口令</p>
       <form @submit.prevent="submit">
         <input

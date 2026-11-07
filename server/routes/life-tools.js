@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { chatWithLLM, isAiEnabled } from '../services/ai-engine.js';
+import { personaStyleHint } from '../services/persona.js';
 
 const router = Router();
 
@@ -31,7 +32,7 @@ router.post('/weekly/generate', async (req, res) => {
       const stats = dims.map(d => `${d}:${user['stat_'+d]}`).join(', ');
       
       weekGoals = await chatWithLLM([
-        { role: 'system', content: `你是猫猫侠的规划引擎。为用户生成本周计划。
+        { role: 'system', content: `${personaStyleHint()} 为用户生成本周计划，只依据下面给出的真实数据。
 
 用户属性：${stats}
 上周任务完成率：${lastWeekTasks.total > 0 ? Math.round(lastWeekTasks.completed / lastWeekTasks.total * 100) : 0}%
@@ -193,7 +194,7 @@ router.post('/cat/exp', (req, res) => {
       level: newLevel, 
       levelUp,
       newAbilities,
-      message: levelUp ? `🎉 猫猫侠升级到 Lv.${newLevel}！新能力解锁：${newAbilities.join('、')}` : `+${expGain}经验`
+      message: levelUp ? `升到 Lv.${newLevel} 了，解锁：${newAbilities.join('、')}` : `+${expGain}经验`
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

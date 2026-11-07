@@ -50,7 +50,7 @@ router.post('/trigger', (req, res) => {
   res.json({ 
     success: true, 
     notification: { 
-      title: title || '🐱 猫猫侠', 
+      title: title || '人生提醒', 
       body: body || '有新消息~', 
       tag: tag || 'cat-hero' 
     } 

@@ -1,11 +1,11 @@
 {
   "app": {
-    "title": "Cat Hero - Life Hero's Journey",
+    "title": "Life Manager",
     "subtitle": "Become a hero of your life through gamification"
   },
   "nav": {
     "dashboard": "Dashboard",
-    "chat": "Cat Hero",
+    "chat": "Chat",
     "checkin": "Check-in",
     "stats": "Statistics",
     "achievements": "Achievements",

@@ -64,7 +64,7 @@ router.post('/:id/log', (req, res) => {
     while (newExp >= getExpForLevel(newLevel + 1)) { newExp -= getExpForLevel(newLevel + 1); newLevel++; }
     db.prepare('UPDATE users SET level = ?, exp = ?, total_exp = total_exp + ? WHERE id = ?').run(newLevel, newExp, expReward, user.id);
     
-    res.json({ success: true, streak: newStreak, best_streak: bestStreak, exp: expReward, message: `习惯打卡成功喵！连续${newStreak}天 🔥` });
+    res.json({ success: true, streak: newStreak, best_streak: bestStreak, exp: expReward, message: `记下了，连续${newStreak}天。` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

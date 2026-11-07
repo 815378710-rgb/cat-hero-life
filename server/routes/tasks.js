@@ -70,7 +70,7 @@ router.post('/:id/complete', (req, res) => {
     const user = db.prepare('SELECT * FROM users LIMIT 1').get();
     const task = db.prepare('SELECT * FROM tasks WHERE id = ? AND user_id = ?').get(req.params.id, user.id);
     if (!task) return res.status(404).json({ error: '任务不存在' });
-    if (task.status === 'completed') return res.json({ success: false, message: '已经完成了喵~' });
+    if (task.status === 'completed') return res.json({ success: false, message: '这个已经完成了。' });
     
     db.prepare("UPDATE tasks SET status = 'completed', completed_at = datetime('now') WHERE id = ?").run(task.id);
     
@@ -84,7 +84,7 @@ router.post('/:id/complete', (req, res) => {
     // 神经传播：任务完成触发维度间影响
     try { propagate(db, user.id, task.dimension_id, 3); } catch (e) { console.error('传播失败:', e.message); }
     
-    res.json({ success: true, message: `完成任务喵！+${task.exp_reward}经验 +${task.coin_reward}金币 🎉`, exp: task.exp_reward, coins: task.coin_reward, level_up: newLevel > user.level, new_level: newLevel });
+    res.json({ success: true, message: `完成了，+${task.exp_reward}经验 +${task.coin_reward}金币`, exp: task.exp_reward, coins: task.coin_reward, level_up: newLevel > user.level, new_level: newLevel });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -106,7 +106,7 @@ router.post('/generate-daily', (req, res) => {
     const user = db.prepare('SELECT * FROM users LIMIT 1').get();
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
     const existing = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE user_id = ? AND scheduled_date = ?").get(user.id, today);
-    if (existing.c > 0) return res.json({ success: false, message: '今天的任务已经生成了喵~' });
+    if (existing.c > 0) return res.json({ success: false, message: '今天的任务已经排好了' });
     
     // 能量适配：根据能量等级限制任务难度
     const energy = calculateCurrentEnergy(db, user.id);
@@ -150,7 +150,7 @@ router.post('/generate-daily', (req, res) => {
         VALUES (?, ?, ?, ?, ?, 'daily', ?, ?, ?, ?)`).run(uuid(), user.id, t.dimension, t.title, t.desc, t.difficulty, t.exp, t.coins, today);
     }
     
-    res.json({ success: true, count: selected.length, message: `为${user.username}生成了${selected.length}个今日任务喵~` });
+    res.json({ success: true, count: selected.length, message: `排了${selected.length}个今日任务` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

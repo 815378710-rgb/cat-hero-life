@@ -47,7 +47,7 @@ router.post('/test-send', async (req, res) => {
     const config = getGewechatConfig();
     if (!config.wxid) return res.json({ success: false, message: '未登录，请先扫码登录' });
     
-    const result = await sendWechatMessage(config.wxid, message || '🐱 猫猫侠测试消息！微信通道已连接~');
+    const result = await sendWechatMessage(config.wxid, message || '🐋 测试消息：微信通道已连接');
     res.json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

@@ -28,7 +28,7 @@ router.post('/stop', async (req, res) => {
 router.post('/test-send', async (req, res) => {
   try {
     const { message } = req.body;
-    const result = await sendToSelf(message || '🐱 猫猫侠测试消息！微信通道已连接~');
+    const result = await sendToSelf(message || '🐋 测试消息：微信通道已连接');
     res.json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

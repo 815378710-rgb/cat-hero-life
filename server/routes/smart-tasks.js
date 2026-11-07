@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { chatWithLLM, isAiEnabled } from '../services/ai-engine.js';
+import { personaStyleHint } from '../services/persona.js';
 
 const router = Router();
 
@@ -53,7 +54,7 @@ async function generateLLMTasks(db, user, profile) {
     const recentCompleted = db.prepare("SELECT dimension_id, COUNT(*) as c FROM tasks WHERE user_id = ? AND status = 'completed' AND created_at > datetime('now', '-7 days') GROUP BY dimension_id").all(user.id);
     const recentMissed = db.prepare("SELECT dimension_id, COUNT(*) as c FROM tasks WHERE user_id = ? AND status = 'pending' AND scheduled_date < date('now') GROUP BY dimension_id").all(user.id);
     
-    const prompt = `你是猫猫侠的任务规划引擎。基于用户档案生成今天的个性化任务。
+    const prompt = `${personaStyleHint()} 基于用户档案生成今天的个性化任务。
 
 【用户档案】
 - 职业：${profile.current_job || '未知'}，${profile.industry || ''}行业

@@ -17,8 +17,8 @@
         <button class="btn-icon" @click="toggleSidebar">
           <i class="fas fa-bars"></i>
         </button>
-        <span class="logo">🐱</span>
-        <h1 class="title">猫猫侠</h1>
+        <span class="logo">{{ personaEmoji }}</span>
+        <h1 class="title">{{ personaName }}</h1>
       </div>
       <div class="header-right">
         <button class="btn-icon" @click="toggleTheme" :title="isDark ? '切换亮色' : '切换暗色'">
@@ -90,7 +90,7 @@
     <nav class="bottom-nav">
       <NavItem page="dashboard" icon="fas fa-home" label="主页" @click="navigate" />
       <NavItem page="tasks" icon="fas fa-tasks" label="任务" @click="navigate" />
-      <NavItem page="chat" icon="fas fa-comments" label="猫猫侠" @click="navigate" />
+      <NavItem page="chat" icon="fas fa-comments" :label="personaLabel" @click="navigate" />
       <NavItem page="checkin" icon="fas fa-check-circle" label="打卡" @click="navigate" />
       <NavItem page="character" icon="fas fa-user-shield" label="角色" @click="navigate" />
     </nav>
@@ -194,16 +194,21 @@ const showToast = (message: string, type: string = 'info') => {
   setTimeout(() => toast.remove(), 3000)
 }
 
-// 当前人格名（切换 CAT_HERO_PERSONA 后导航自动同步）
-const personaLabel = ref('聊天')
+// 当前人格（默认与服务端 meta.json 保持一致；接口失败也不会显示错名字）
+const personaName = ref('阿蓝')
+const personaEmoji = ref('🐋')
+const personaLabel = ref('🐋 阿蓝')
 onMounted(async () => {
   try {
     const r = await fetch('/api/persona')
     if (r.ok) {
       const p = await r.json()
-      personaLabel.value = `${p.emoji || ''} ${p.name || '聊天'}`.trim()
+      personaName.value = p.name || personaName.value
+      personaEmoji.value = p.emoji || personaEmoji.value
+      personaLabel.value = `${personaEmoji.value} ${personaName.value}`
+      document.title = `${personaEmoji.value} ${personaName.value} · 人生管理系统`
     }
-  } catch { /* 接口不可用时保持中性标签 */ }
+  } catch { /* 接口不可用时沿用默认值 */ }
 
   // Load theme: localStorage > system preference
   const savedTheme = localStorage.getItem('theme')

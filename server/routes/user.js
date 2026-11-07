@@ -68,7 +68,7 @@ router.post('/signin', (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     
     if (user.last_sign_date === today) {
-      return res.json({ success: false, message: '今天已经签到过了喵~' });
+      return res.json({ success: false, message: '今天已经签过了' });
     }
     
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
@@ -90,7 +90,7 @@ router.post('/signin', (req, res) => {
     
     res.json({
       success: true,
-      message: `签到成功喵！连续${newStreak}天 +${totalExp}经验 +${totalCoins}金币 🎉`,
+      message: `签到记下了，连续${newStreak}天 +${totalExp}经验 +${totalCoins}金币`,
       exp: totalExp, coins: totalCoins, streak: newStreak,
       level_up: newLevel > user.level
     });

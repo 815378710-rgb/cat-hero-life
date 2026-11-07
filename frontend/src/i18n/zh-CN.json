@@ -1,11 +1,11 @@
 {
   "app": {
-    "title": "猫猫侠 - 人生英雄之路",
+    "title": "人生管理系统",
     "subtitle": "用游戏化的方式，成为人生的英雄"
   },
   "nav": {
     "dashboard": "主页",
-    "chat": "猫猫侠",
+    "chat": "聊天",
     "checkin": "打卡",
     "stats": "统计",
     "achievements": "成就",

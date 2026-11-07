@@ -2,7 +2,7 @@
   <div class="room-page">
     <div class="page-header">
       <div>
-        <h2>🏠 阿蓝的小房间</h2>
+        <h2>🏠 她的小房间</h2>
         <p class="sub">房间是表演，右侧文字才是真实的记忆。</p>
       </div>
       <div class="phase-badge">{{ phaseIcon }} {{ phaseLabel }} · {{ clockText }}</div>
@@ -11,7 +11,7 @@
     <div class="room-layout">
       <!-- ============ 房间 ============ -->
       <section class="room-stage">
-        <svg class="room-svg" viewBox="0 0 800 520" role="img" aria-label="阿蓝的房间">
+        <svg class="room-svg" viewBox="0 0 800 520" role="img" aria-label="她的小房间">
           <defs>
             <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" :stop-color="sky.top" />

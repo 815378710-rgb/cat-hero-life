@@ -121,7 +121,7 @@ router.post('/onboarding-answer', (req, res) => {
       success: true, 
       next_step: currentStep + 1, 
       completed: isComplete,
-      message: isComplete ? '🎉 档案建立完成！猫猫侠现在了解你了，让我为你规划人生吧~' : `继续下一步喵~ (${currentStep + 1}/${totalSteps})`
+      message: isComplete ? '档案建好了，后面我按这个来陪你规划。' : `还有一步 (${currentStep + 1}/${totalSteps})`
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

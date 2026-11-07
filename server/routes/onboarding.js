@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { chatWithLLM, isAiEnabled } from '../services/ai-engine.js';
+import { personaStyleHint } from '../services/persona.js';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.post('/start', async (req, res) => {
     }
     
     // 猫猫侠的开场白
-    const greeting = `🐱 "嘿，你好呀！我是猫猫侠，你的人生AI管家。"
+    const greeting = `"嘿，你好呀！以后我陪你过日子，也帮你管人生。"
 
 🐱 "我等你很久了~ 让我好好了解你，这样才能帮你规划人生。"
 
@@ -155,7 +156,7 @@ function buildOnboardingPrompt(user, profile, step, lastMessage) {
   if (profile.education_level) collectedInfo.push(`学历:${profile.education_level}`);
   if (profile.marital_status) collectedInfo.push(`感情:${profile.marital_status}`);
   
-  return `你是"猫猫侠"🐱，一个温暖、有趣的AI人生管家。你正在通过对话了解用户，建立人生档案。
+  return `${personaStyleHint()} 你正在通过对话了解用户，建立人生档案。
 
 【当前状态】建档进度：第${step + 1}步/共10步
 【当前话题】${currentTopic}
@@ -170,7 +171,7 @@ ${nextTopic ? `【下一话题预告】准备过渡到：${nextTopic}` : '【最
 3. 当前话题聊得差不多了，自然过渡到下一个话题
 4. 语气温暖、有趣，像朋友聊天
 5. 回复不要太长，2-4句话就好
-6. 偶尔用"喵~"作为语气词
+6. 语气自然，不用固定口癖，也别编造用户没说过的事
 7. 如果用户说的信息跟当前话题无关，先回应再引导回来
 
 【提取信息格式】
@@ -180,7 +181,7 @@ ${nextTopic ? `【下一话题预告】准备过渡到：${nextTopic}` : '【最
 
 可提取的字段：gender, birth_year, city, mbti, education_level, school, major, current_job, industry, job_years, marital_status, living_situation, has_pet, height_cm, weight_kg, sleep_hours_avg, exercise_frequency, personality_traits(逗号分隔), strengths(逗号分隔), weaknesses(逗号分隔), values(逗号分隔), hobbies(逗号分隔), skills(逗号分隔), want_to_learn(逗号分隔), current_challenges(逗号分隔), ideal_life_description, ideal_self_description, bucket_list(逗号分隔)
 
-现在，以猫猫侠的身份回复用户。`;
+现在，以你的角色身份回复用户。`;
 }
 
 function extractUserInfo(message, step) {
@@ -221,7 +222,7 @@ function extractUserInfo(message, step) {
 
 function generateFallbackOnboardingResponse(step, message) {
   const responses = [
-    '收到喵~ 那你多大了？在哪个城市生活呀？',
+    '收到。那你多大了？在哪个城市生活呀？',
     '了解了~ 你做什么工作？工作几年了？',
     '嗯嗯~ 感情状态怎么样？一个人住还是和家人一起？',
     '身体方面呢？身高体重多少？平时运动吗？睡眠怎么样？',

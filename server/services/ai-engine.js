@@ -757,7 +757,7 @@ export async function llmGenerateReview(todayData, weekData, userProfile) {
 - 最弱维度: ${weekData.weakDimension}
 - 情绪趋势: ${weekData.moodTrend}
 
-用猫猫侠的口吻写，简短有温度(3-5句话)，包含：
+沿用当前人格的口吻写，简短有温度(3-5句话)，只依据下面的真实数据，不编造，包含：
 1. 今天做得好的地方
 2. 需要改进的地方
 3. 明天的建议

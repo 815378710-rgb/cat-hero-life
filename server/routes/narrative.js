@@ -56,7 +56,7 @@ router.post('/generate', async (req, res) => {
     if (!narrative) {
       const name = user.username || '主角';
       const age = profile?.birth_year ? new Date().getFullYear() - profile.birth_year : 25;
-      narrative = `第${chapterNum}章：继续前行\n\n${age}岁的${name}又度过了平凡的一天。\n\n完成任务${completedTasks.c}个，打卡${checkinDays.c}天。数字在增长，但${name}知道，真正的变化不在于数字。\n\n属性面板上，${['健康','财务','学习','职业','社交','心理','习惯','创造'].sort((a,b) => user['stat_'+{健康:'health',财务:'finance',学习:'learning',职业:'career',社交:'social',心理:'mental',习惯:'habits',创造:'creativity'}[a]] - user['stat_'+{健康:'health',财务:'finance',学习:'learning',职业:'career',社交:'social',心理:'mental',习惯:'habits',创造:'creativity'}[b]])[0]}维度最低，这是下一个需要突破的方向。\n\n猫猫侠在屏幕的另一端注视着这一切。它知道，每一个小进步，都在编织一个更大的故事。\n\n而这个故事，才刚刚开始。`;
+      narrative = `第${chapterNum}章：继续前行\n\n${age}岁的${name}又度过了平凡的一天。\n\n完成任务${completedTasks.c}个，打卡${checkinDays.c}天。数字在增长，但${name}知道，真正的变化不在于数字。\n\n属性面板上，${['健康','财务','学习','职业','社交','心理','习惯','创造'].sort((a,b) => user['stat_'+{健康:'health',财务:'finance',学习:'learning',职业:'career',社交:'social',心理:'mental',习惯:'habits',创造:'creativity'}[a]] - user['stat_'+{健康:'health',财务:'finance',学习:'learning',职业:'career',社交:'social',心理:'mental',习惯:'habits',创造:'creativity'}[b]])[0]}维度最低，这是下一个需要突破的方向。\n\n屏幕另一端有人看着这些数字，也知道每一个小进步，都在编织一个更大的故事。\n\n而这个故事，才刚刚开始。`;
     }
     
     const title = narrative.match(/第\d+章[：:](.+)/)?.[1]?.trim() || `第${chapterNum}章`;

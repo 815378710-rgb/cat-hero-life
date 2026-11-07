@@ -90,8 +90,8 @@
         <div v-if="weeklyReview">
           <p class="review-text">{{ (weeklyReview.summary || '').slice(0, 120) || '暂无复盘' }}</p>
           <div class="review-stats">
-            <span>✅ {{ weeklyReview.tasksCompleted || 0 }} 任务</span>
-            <span>🔥 {{ weeklyReview.checkins || 0 }} 打卡</span>
+            <span>✅ {{ weeklyReview.tasks?.completed ?? 0 }} 任务</span>
+            <span>🔥 {{ weeklyReview.checkins?.total ?? 0 }} 打卡</span>
           </div>
         </div>
         <p v-else class="empty-hint">本周暂无数据</p>
@@ -111,7 +111,7 @@
           <div v-if="allEmpty" class="dimension-empty">
             <div class="de-emoji">🐱</div>
             <div class="de-title">你的人生画卷还是空白的～</div>
-            <div class="de-desc">点击任意维度完成<strong>第一次打卡</strong>，猫猫侠就会开始追踪你的成长轨迹，人生属性也会逐渐点亮！</div>
+            <div class="de-desc">点击任意维度完成<strong>第一次打卡</strong>，就会开始追踪你的成长轨迹，人生属性也会逐渐点亮！</div>
             <button class="btn btn-primary de-btn" @click="startFirstCheckin">🚀 开始第一次打卡</button>
             <div class="de-hint">共 {{ dimensionStats.length }} 个人生维度等你探索</div>
           </div>

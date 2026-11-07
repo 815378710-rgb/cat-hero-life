@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { chatWithLLM, isAiEnabled } from '../services/ai-engine.js';
+import { personaStyleHint } from '../services/persona.js';
 
 const router = Router();
 
@@ -111,7 +112,7 @@ router.get('/weekly-review', async (req, res) => {
     let summary = '';
     if (isAiEnabled()) {
       summary = await chatWithLLM([
-        { role: 'system', content: `你是猫猫侠，生成本周复盘报告。简洁、温暖、有建设性。
+        { role: 'system', content: `${personaStyleHint()} 生成本周复盘报告，简洁、有建设性，只依据下面给出的真实数据。
 
 本周数据：
 - 任务完成率：${completionRate}%（${taskStats.completed}/${taskStats.total}）

@@ -270,7 +270,7 @@ async function processMessageSync(db, userId, wxid, msg) {
 
   // 帮助
   if (/^(帮助|help|怎么用)/.test(msg)) {
-    return { reply: '猫猫侠\n打卡：发「打卡 跑步」\n查看：发「状态」\n聊天：随便说' };
+    return { reply: '打卡：发「打卡 跑步」\n查看：发「状态」\n聊天：随便说' };
   }
 
   // 默认：调用AI智能回复

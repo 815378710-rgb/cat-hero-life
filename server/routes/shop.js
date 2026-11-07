@@ -21,14 +21,14 @@ router.post('/purchase/:itemId', (req, res) => {
     const user = db.prepare('SELECT * FROM users LIMIT 1').get();
     const item = db.prepare('SELECT * FROM shop_items WHERE id = ?').get(req.params.itemId);
     if (!item) return res.status(404).json({ error: '商品不存在' });
-    if (user.coins < item.price) return res.json({ success: false, message: `金币不足喵！需要${item.price}，你有${user.coins} 💰` });
-    if (item.stock === 0) return res.json({ success: false, message: '已售罄喵~' });
+    if (user.coins < item.price) return res.json({ success: false, message: `金币不够，需要${item.price}，你有${user.coins}` });
+    if (item.stock === 0) return res.json({ success: false, message: '已经没有了' });
     
     db.prepare('UPDATE users SET coins = coins - ? WHERE id = ?').run(item.price, user.id);
     db.prepare('INSERT INTO user_purchases (id, user_id, item_id, price_paid) VALUES (?, ?, ?, ?)').run(uuid(), user.id, item.id, item.price);
     if (item.stock > 0) db.prepare('UPDATE shop_items SET stock = stock - 1 WHERE id = ?').run(item.id);
     
-    res.json({ success: true, message: item.item_type === 'real_reward' ? `购买成功喵！🎁 ${item.real_reward_desc}` : `购买成功喵！已解锁 ${item.name} ✨`, remaining_coins: user.coins - item.price });
+    res.json({ success: true, message: item.item_type === 'real_reward' ? `买好了 🎁 ${item.real_reward_desc}` : `解锁了 ${item.name}`, remaining_coins: user.coins - item.price });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -43,7 +43,7 @@ router.get('/purchases', (req, res) => {
 
 router.post('/purchases/:id/use', (req, res) => {
   const db = req.db;
-  try { db.prepare("UPDATE user_purchases SET status = 'used', used_at = datetime('now') WHERE id = ?").run(req.params.id); res.json({ success: true, message: '享受你的奖励吧喵~ 🎉' }); }
+  try { db.prepare("UPDATE user_purchases SET status = 'used', used_at = datetime('now') WHERE id = ?").run(req.params.id); res.json({ success: true, message: '奖励用掉了，记一笔。' }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
